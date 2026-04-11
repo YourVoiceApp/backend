@@ -37,6 +37,13 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+tasks.named('processResources') {
+    // Docker/배포 JAR: application-local.yml 제외 → application.yml 만 런타임 설정으로 포함
+    if (project.hasProperty('deploy')) {
+        exclude '**/application-local.yml'
+    }
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }

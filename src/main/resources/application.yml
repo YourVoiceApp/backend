@@ -1,16 +1,20 @@
+# 배포(JAR/Docker) 시에는 application-local.yml 을 넣지 않으므로 이 파일만 적용됩니다.
+# 로컬: spring.profiles.default=local + application-local.yml 이 아래 설정을 덮어씁니다.
+
 spring:
+  profiles:
+    default: local
+
   datasource:
-    url: jdbc:mysql://localhost:3306/yourvoice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: root
-    password: root
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
-    properties:
-      hibernate:
-        format_sql: true
-    show-sql: true
+    show-sql: false
 
 server:
   port: 9090
@@ -25,7 +29,6 @@ auth:
   google:
     client-id: ${GOOGLE_CLIENT_ID:498950596222-tncs8b6ce662tiuga816ai9pda03e3fr.apps.googleusercontent.com}
   jwt:
-    # Base64 encoded secret. Change in production.
     secret: ${JWT_SECRET_BASE64:ZGV2LXNlY3JldC1rZXktZm9yLWp3dC1zaG91bGQtYmUtbG9uZy1lbm91Z2gtMTIzNDU2}
     access-expiration-seconds: 1800
     refresh-expiration-seconds: 1209600

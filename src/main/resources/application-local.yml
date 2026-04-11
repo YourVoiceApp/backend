@@ -1,0 +1,15 @@
+# 로컬 전용 (Gradle -Pdeploy / Docker 빌드 시 JAR 에 포함되지 않음)
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/yourvoice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
