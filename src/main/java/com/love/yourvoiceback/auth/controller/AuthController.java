@@ -4,9 +4,12 @@ import com.love.yourvoiceback.auth.dto.AuthResponse;
 import com.love.yourvoiceback.auth.dto.GoogleLoginRequest;
 import com.love.yourvoiceback.auth.dto.KakaoLoginRequest;
 import com.love.yourvoiceback.auth.dto.LoginRequest;
+import com.love.yourvoiceback.auth.dto.SendEmailVerificationRequest;
 import com.love.yourvoiceback.auth.dto.SignupRequest;
 import com.love.yourvoiceback.auth.dto.TokenRefreshRequest;
+import com.love.yourvoiceback.auth.dto.VerifyEmailRequest;
 import com.love.yourvoiceback.auth.service.AuthService;
+import com.love.yourvoiceback.auth.service.EmailVerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,21 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailVerificationService emailVerificationService;
+
+    @PostMapping("/email/send-verification")
+    @Operation(summary = "회원가입용 이메일 인증 코드를 발송합니다.")
+    public ResponseEntity<Void> sendVerification(@Valid @RequestBody SendEmailVerificationRequest request) {
+        emailVerificationService.sendVerificationCode(request.email());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/email/verify")
+    @Operation(summary = "이메일 인증 코드를 검증합니다.")
+    public ResponseEntity<Void> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        emailVerificationService.verifyCode(request.email(), request.code());
+        return ResponseEntity.noContent().build();
+    }
 
     @PostMapping("/signup")
     @Operation(summary = "이메일 회원가입 후 토큰을 발급합니다.")

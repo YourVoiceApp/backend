@@ -7,6 +7,10 @@ public enum ErrorCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error"),
 
     EMAIL_ALREADY_REGISTERED(HttpStatus.CONFLICT, "Email already registered"),
+    EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "Email verification is required"),
+    EMAIL_VERIFICATION_CODE_INVALID(HttpStatus.BAD_REQUEST, "Invalid email verification code"),
+    EMAIL_VERIFICATION_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "Email verification code expired"),
+    EMAIL_VERIFICATION_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to send email verification message"),
     NICKNAME_ALREADY_TAKEN(HttpStatus.CONFLICT, "Nickname already taken"),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Invalid email or password"),
     PASSWORD_LOGIN_NOT_AVAILABLE(HttpStatus.BAD_REQUEST, "Password login is not available for this account"),

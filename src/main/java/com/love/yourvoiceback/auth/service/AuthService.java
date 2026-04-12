@@ -34,6 +34,7 @@ public class AuthService {
 
     private final GoogleTokenVerifier googleTokenVerifier;
     private final KakaoAuthClient kakaoAuthClient;
+    private final EmailVerificationService emailVerificationService;
     private final UserSocialAccountRepository userSocialAccountRepository;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -45,6 +46,8 @@ public class AuthService {
 
     @Transactional
     public AuthResponse signup(SignupRequest request) {
+        emailVerificationService.ensureVerified(request.email());
+
         if (userRepository.existsByEmail(request.email())) {
             throw ApiException.error(ErrorCode.EMAIL_ALREADY_REGISTERED);
         }
@@ -57,6 +60,8 @@ public class AuthService {
                 request.email(),
                 passwordEncoder.encode(request.password())
         ));
+
+        emailVerificationService.clearVerification(request.email());
 
         return issueTokens(user, request.deviceInfo());
     }
