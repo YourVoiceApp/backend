@@ -1,4 +1,4 @@
-package com.love.yourvoiceback.auth.jwt;
+package com.love.yourvoiceback.common.jwt;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

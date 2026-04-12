@@ -16,12 +16,18 @@ public record KakaoUserResponse(
 
     public boolean hasUsableEmail() {
         String email = email();
-        return email != null && !email.isBlank();
+        return email != null
+                && !email.isBlank()
+                && kakaoAccount != null
+                && Boolean.TRUE.equals(kakaoAccount.isEmailValid())
+                && Boolean.TRUE.equals(kakaoAccount.isEmailVerified());
     }
 
     public record KakaoAccount(
             @JsonProperty("has_email") Boolean hasEmail,
             @JsonProperty("email_needs_agreement") Boolean emailNeedsAgreement,
+            @JsonProperty("is_email_valid") Boolean isEmailValid,
+            @JsonProperty("is_email_verified") Boolean isEmailVerified,
             String email
     ) {
     }

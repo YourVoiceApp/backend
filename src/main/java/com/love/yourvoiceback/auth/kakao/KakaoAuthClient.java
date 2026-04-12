@@ -1,5 +1,7 @@
 package com.love.yourvoiceback.auth.kakao;
 
+import com.love.yourvoiceback.common.exception.ApiException;
+import com.love.yourvoiceback.common.exception.ErrorCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -24,14 +26,14 @@ public class KakaoAuthClient {
                     .body(KakaoUserResponse.class);
 
             if (response == null || response.providerUserId() == null) {
-                throw new IllegalArgumentException("Invalid kakao user response");
+                throw ApiException.error(ErrorCode.INVALID_KAKAO_USER_RESPONSE);
             }
             if (!response.hasUsableEmail()) {
-                throw new IllegalArgumentException("Kakao account email is required");
+                throw ApiException.error(ErrorCode.KAKAO_EMAIL_NOT_VERIFIED);
             }
             return response;
         } catch (RestClientException ex) {
-            throw new IllegalArgumentException("Failed to fetch kakao user profile", ex);
+            throw ApiException.error(ErrorCode.KAKAO_PROFILE_FETCH_FAILED, ex);
         }
     }
 }

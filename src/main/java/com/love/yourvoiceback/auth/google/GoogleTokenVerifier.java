@@ -1,5 +1,7 @@
 package com.love.yourvoiceback.auth.google;
 
+import com.love.yourvoiceback.common.exception.ApiException;
+import com.love.yourvoiceback.common.exception.ErrorCode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -28,13 +30,13 @@ public class GoogleTokenVerifier {
                 .body(GoogleIdTokenPayload.class);
 
         if (payload == null || payload.sub() == null || payload.email() == null) {
-            throw new IllegalArgumentException("Invalid google id token payload");
+            throw ApiException.error(ErrorCode.INVALID_GOOGLE_ID_TOKEN);
         }
         if (!googleClientId.equals(payload.aud())) {
-            throw new IllegalArgumentException("Google token audience mismatch");
+            throw ApiException.error(ErrorCode.GOOGLE_TOKEN_AUDIENCE_MISMATCH);
         }
         if (!payload.isEmailVerified()) {
-            throw new IllegalArgumentException("Google email is not verified");
+            throw ApiException.error(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
         }
         return payload;
     }

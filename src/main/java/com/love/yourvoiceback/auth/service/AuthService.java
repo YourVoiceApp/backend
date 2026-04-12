@@ -6,19 +6,24 @@ import com.love.yourvoiceback.auth.domain.UserSocialAccount;
 import com.love.yourvoiceback.auth.dto.AuthResponse;
 import com.love.yourvoiceback.auth.dto.GoogleLoginRequest;
 import com.love.yourvoiceback.auth.dto.KakaoLoginRequest;
+import com.love.yourvoiceback.auth.dto.LoginRequest;
+import com.love.yourvoiceback.auth.dto.SignupRequest;
 import com.love.yourvoiceback.auth.google.GoogleIdTokenPayload;
 import com.love.yourvoiceback.auth.google.GoogleTokenVerifier;
-import com.love.yourvoiceback.auth.jwt.JwtTokenProvider;
+import com.love.yourvoiceback.common.jwt.JwtTokenProvider;
 import com.love.yourvoiceback.auth.kakao.KakaoAuthClient;
 import com.love.yourvoiceback.auth.kakao.KakaoUserResponse;
 import com.love.yourvoiceback.auth.repository.RefreshTokenRepository;
 import com.love.yourvoiceback.auth.repository.UserSocialAccountRepository;
-import com.love.yourvoiceback.auth.util.TokenHashUtil;
+import com.love.yourvoiceback.common.jwt.TokenHashUtil;
+import com.love.yourvoiceback.common.exception.ApiException;
+import com.love.yourvoiceback.common.exception.ErrorCode;
 import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.user.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -33,9 +38,43 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${auth.jwt.refresh-expiration-seconds}")
     private long refreshExpirationSeconds;
+
+    @Transactional
+    public AuthResponse signup(SignupRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw ApiException.error(ErrorCode.EMAIL_ALREADY_REGISTERED);
+        }
+        if (userRepository.existsByNickName(request.nickName())) {
+            throw ApiException.error(ErrorCode.NICKNAME_ALREADY_TAKEN);
+        }
+
+        User user = userRepository.save(User.of(
+                request.nickName(),
+                request.email(),
+                passwordEncoder.encode(request.password())
+        ));
+
+        return issueTokens(user, request.deviceInfo());
+    }
+
+    @Transactional
+    public AuthResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> ApiException.error(ErrorCode.INVALID_CREDENTIALS));
+
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            throw ApiException.error(ErrorCode.PASSWORD_LOGIN_NOT_AVAILABLE);
+        }
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw ApiException.error(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        return issueTokens(user, request.deviceInfo());
+    }
 
     @Transactional
     public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
@@ -65,24 +104,24 @@ public class AuthService {
                 .revoked(false)
                 .build());
 
-        return new AuthResponse(accessToken, refreshToken, user.getId(), user.getEmail());
+        return AuthResponse.of(accessToken, refreshToken, user.getId(), user.getEmail());
     }
 
     @Transactional
     public AuthResponse refresh(String refreshToken) {
         if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new IllegalArgumentException("Invalid refresh token");
+            throw ApiException.error(ErrorCode.INVALID_REFRESH_TOKEN);
         }
         Long userId = jwtTokenProvider.getUserId(refreshToken);
 
         RefreshToken stored = refreshTokenRepository.findByTokenHashAndRevokedFalse(TokenHashUtil.sha256(refreshToken))
-                .orElseThrow(() -> new IllegalArgumentException("Refresh token not found"));
+                .orElseThrow(() -> ApiException.error(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
 
         if (stored.isExpired()) {
-            throw new IllegalArgumentException("Refresh token expired");
+            throw ApiException.error(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }
         if (!stored.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Refresh token user mismatch");
+            throw ApiException.error(ErrorCode.REFRESH_TOKEN_USER_MISMATCH);
         }
 
         stored.setRevoked(true);
@@ -99,7 +138,7 @@ public class AuthService {
                 .revoked(false)
                 .build());
 
-        return new AuthResponse(newAccessToken, newRefreshToken, user.getId(), user.getEmail());
+        return AuthResponse.of(newAccessToken, newRefreshToken, user.getId(), user.getEmail());
     }
 
     @Transactional
@@ -125,7 +164,7 @@ public class AuthService {
 
     private User linkOrCreateUser(SocialProvider provider, String providerUserId, String email, String nicknamePrefix) {
         User user = userRepository.findByEmail(email)
-                .orElseGet(() -> userRepository.save(User.of(generateNickName(email, nicknamePrefix), email, null)));
+                .orElseGet(() -> userRepository.save(User.of(generateUniqueNickName(email, nicknamePrefix), email, null)));
 
         userSocialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .orElseGet(() -> userSocialAccountRepository.save(UserSocialAccount.builder()
@@ -138,8 +177,18 @@ public class AuthService {
         return user;
     }
 
-    private String generateNickName(String email, String prefix) {
+    private String generateUniqueNickName(String email, String prefix) {
         String localPart = email.split("@")[0];
-        return prefix + localPart;
+        String base = prefix + localPart;
+
+        if (!userRepository.existsByNickName(base)) {
+            return base;
+        }
+
+        int suffix = 1;
+        while (userRepository.existsByNickName(base + suffix)) {
+            suffix++;
+        }
+        return base + suffix;
     }
 }

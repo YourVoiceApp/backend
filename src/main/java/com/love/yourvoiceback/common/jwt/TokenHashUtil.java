@@ -1,4 +1,4 @@
-package com.love.yourvoiceback.auth.util;
+package com.love.yourvoiceback.common.jwt;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

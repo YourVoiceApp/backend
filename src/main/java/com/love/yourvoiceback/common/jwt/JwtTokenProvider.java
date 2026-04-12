@@ -1,4 +1,4 @@
-package com.love.yourvoiceback.auth.jwt;
+package com.love.yourvoiceback.common.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
