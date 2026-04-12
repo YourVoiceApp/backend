@@ -47,7 +47,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse loginWithKakao(KakaoLoginRequest request) {
-        KakaoUserResponse payload = kakaoAuthClient.getUserByAuthorizationCode(request.code());
+        KakaoUserResponse payload = kakaoAuthClient.getUserByAccessToken(request.accessToken());
         User user = findOrCreateUserByKakaoPayload(payload);
 
         return issueTokens(user, request.deviceInfo());
