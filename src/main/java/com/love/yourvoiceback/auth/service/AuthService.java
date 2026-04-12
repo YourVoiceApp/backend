@@ -5,9 +5,12 @@ import com.love.yourvoiceback.auth.domain.SocialProvider;
 import com.love.yourvoiceback.auth.domain.UserSocialAccount;
 import com.love.yourvoiceback.auth.dto.AuthResponse;
 import com.love.yourvoiceback.auth.dto.GoogleLoginRequest;
+import com.love.yourvoiceback.auth.dto.KakaoLoginRequest;
 import com.love.yourvoiceback.auth.google.GoogleIdTokenPayload;
 import com.love.yourvoiceback.auth.google.GoogleTokenVerifier;
 import com.love.yourvoiceback.auth.jwt.JwtTokenProvider;
+import com.love.yourvoiceback.auth.kakao.KakaoAuthClient;
+import com.love.yourvoiceback.auth.kakao.KakaoUserResponse;
 import com.love.yourvoiceback.auth.repository.RefreshTokenRepository;
 import com.love.yourvoiceback.auth.repository.UserSocialAccountRepository;
 import com.love.yourvoiceback.auth.util.TokenHashUtil;
@@ -25,6 +28,7 @@ import java.time.LocalDateTime;
 public class AuthService {
 
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final KakaoAuthClient kakaoAuthClient;
     private final UserSocialAccountRepository userSocialAccountRepository;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -38,13 +42,25 @@ public class AuthService {
         GoogleIdTokenPayload payload = googleTokenVerifier.verify(request.idToken());
         User user = findOrCreateUserByGooglePayload(payload);
 
+        return issueTokens(user, request.deviceInfo());
+    }
+
+    @Transactional
+    public AuthResponse loginWithKakao(KakaoLoginRequest request) {
+        KakaoUserResponse payload = kakaoAuthClient.getUserByAuthorizationCode(request.code());
+        User user = findOrCreateUserByKakaoPayload(payload);
+
+        return issueTokens(user, request.deviceInfo());
+    }
+
+    private AuthResponse issueTokens(User user, String deviceInfo) {
         String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
         refreshTokenRepository.save(RefreshToken.builder()
                 .user(user)
                 .tokenHash(TokenHashUtil.sha256(refreshToken))
-                .deviceInfo(request.deviceInfo())
+                .deviceInfo(deviceInfo)
                 .expiresAt(LocalDateTime.now().plusSeconds(refreshExpirationSeconds))
                 .revoked(false)
                 .build());
@@ -94,28 +110,36 @@ public class AuthService {
     }
 
     private User findOrCreateUserByGooglePayload(GoogleIdTokenPayload payload) {
-        return userSocialAccountRepository.findByProviderAndProviderUserId(SocialProvider.GOOGLE, payload.sub())
-                .map(UserSocialAccount::getUser)
-                .orElseGet(() -> linkOrCreateUser(payload));
+        return findOrCreateSocialUser(SocialProvider.GOOGLE, payload.sub(), payload.email(), "g_");
     }
 
-    private User linkOrCreateUser(GoogleIdTokenPayload payload) {
-        User user = userRepository.findByEmail(payload.email())
-                .orElseGet(() -> userRepository.save(User.of(generateNickName(payload.email()), payload.email(), null)));
+    private User findOrCreateUserByKakaoPayload(KakaoUserResponse payload) {
+        return findOrCreateSocialUser(SocialProvider.KAKAO, payload.providerUserId(), payload.email(), "k_");
+    }
 
-        userSocialAccountRepository.findByProviderAndProviderUserId(SocialProvider.GOOGLE, payload.sub())
+    private User findOrCreateSocialUser(SocialProvider provider, String providerUserId, String email, String nicknamePrefix) {
+        return userSocialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
+                .map(UserSocialAccount::getUser)
+                .orElseGet(() -> linkOrCreateUser(provider, providerUserId, email, nicknamePrefix));
+    }
+
+    private User linkOrCreateUser(SocialProvider provider, String providerUserId, String email, String nicknamePrefix) {
+        User user = userRepository.findByEmail(email)
+                .orElseGet(() -> userRepository.save(User.of(generateNickName(email, nicknamePrefix), email, null)));
+
+        userSocialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .orElseGet(() -> userSocialAccountRepository.save(UserSocialAccount.builder()
                         .user(user)
-                        .provider(SocialProvider.GOOGLE)
-                        .providerUserId(payload.sub())
-                        .email(payload.email())
+                        .provider(provider)
+                        .providerUserId(providerUserId)
+                        .email(email)
                         .build()));
 
         return user;
     }
 
-    private String generateNickName(String email) {
+    private String generateNickName(String email, String prefix) {
         String localPart = email.split("@")[0];
-        return "g_" + localPart;
+        return prefix + localPart;
     }
 }

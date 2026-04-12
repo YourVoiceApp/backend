@@ -2,6 +2,7 @@ package com.love.yourvoiceback.auth.controller;
 
 import com.love.yourvoiceback.auth.dto.AuthResponse;
 import com.love.yourvoiceback.auth.dto.GoogleLoginRequest;
+import com.love.yourvoiceback.auth.dto.KakaoLoginRequest;
 import com.love.yourvoiceback.auth.dto.TokenRefreshRequest;
 import com.love.yourvoiceback.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -19,6 +20,11 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<AuthResponse> google(@Valid @RequestBody GoogleLoginRequest request) {
         return ResponseEntity.ok(authService.loginWithGoogle(request));
+    }
+
+    @PostMapping("/kakao")
+    public ResponseEntity<AuthResponse> kakao(@Valid @RequestBody KakaoLoginRequest request) {
+        return ResponseEntity.ok(authService.loginWithKakao(request));
     }
 
     @PostMapping("/refresh")

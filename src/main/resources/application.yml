@@ -28,6 +28,9 @@ springdoc:
 auth:
   google:
     client-id: ${GOOGLE_CLIENT_ID:498950596222-tncs8b6ce662tiuga816ai9pda03e3fr.apps.googleusercontent.com}
+  kakao:
+    rest-api-key: ${KAKAO_REST_API_KEY:}
+    redirect-uri: ${KAKAO_REDIRECT_URI:}
   jwt:
     secret: ${JWT_SECRET_BASE64:ZGV2LXNlY3JldC1rZXktZm9yLWp3dC1zaG91bGQtYmUtbG9uZy1lbm91Z2gtMTIzNDU2}
     access-expiration-seconds: 1800
