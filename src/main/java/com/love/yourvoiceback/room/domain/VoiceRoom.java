@@ -31,8 +31,8 @@ public class VoiceRoom {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false, length = 50, unique = true)
-    private String inviteCode;
+    @Column(nullable = false)
+    private Integer inviteCode;
 
     @Column(length = 255)
     private String passwordHash;
@@ -52,7 +52,7 @@ public class VoiceRoom {
     @Column(nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    public static VoiceRoom of(User owner, String name, String inviteCode, JoinPolicy joinPolicy, String passwordHash, Long maxParticipants) {
+    public static VoiceRoom of(User owner, String name, Integer inviteCode, JoinPolicy joinPolicy, String passwordHash, Long maxParticipants) {
         return VoiceRoom.builder()
                 .owner(owner)
                 .name(name)
