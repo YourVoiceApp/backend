@@ -1,4 +1,4 @@
-package com.love.yourvoiceback.room;
+package com.love.yourvoiceback.room.domain;
 
 import com.love.yourvoiceback.user.User;
 import jakarta.persistence.Column;
@@ -19,6 +19,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+
+/*
+* VoiceRoom - User N:N 관계
+* */
 
 @Entity
 @Table(name = "voice_room")
@@ -61,6 +65,17 @@ public class VoiceRoom {
     public enum JoinPolicy {
         INVITE_CODE_ONLY,
         INVITE_CODE_WITH_PASSWORD,
-        APPROVAL_REQUIRED
+    }
+
+    public static VoiceRoom of(User owner, String name, String inviteCode, JoinPolicy joinPolicy, String passwordHash) {
+        return VoiceRoom.builder()
+                .owner(owner)
+                .name(name)
+                .inviteCode(inviteCode)
+                .joinPolicy(joinPolicy)
+                .passwordHash(passwordHash)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
     }
 }

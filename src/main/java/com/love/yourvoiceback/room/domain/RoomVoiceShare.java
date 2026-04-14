@@ -1,4 +1,4 @@
-package com.love.yourvoiceback.room;
+package com.love.yourvoiceback.room.domain;
 
 import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.VoiceAsset;
@@ -21,6 +21,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+
+/*
+ * VoiceRoom - RoomVoiceShare - Room  1:N:1 관계 의미
+ * */
 
 @Entity
 @Table(
