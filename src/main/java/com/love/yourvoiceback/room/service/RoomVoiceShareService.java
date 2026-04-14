@@ -14,7 +14,8 @@ import com.love.yourvoiceback.room.reopository.RoomRepository;
 import com.love.yourvoiceback.room.reopository.RoomVoiceShareRepository;
 import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.VoiceAsset;
-import com.love.yourvoiceback.voice.VoiceAssetRepository;
+import com.love.yourvoiceback.voice.VoiceOwnership;
+import com.love.yourvoiceback.voice.VoiceOwnershipRepository;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,7 @@ public class RoomVoiceShareService {
     private final RoomRepository roomRepository;
     private final RoomMembershipRepository roomMembershipRepository;
     private final RoomVoiceShareRepository roomVoiceShareRepository;
-    private final VoiceAssetRepository voiceAssetRepository;
+    private final VoiceOwnershipRepository voiceOwnershipRepository;
 
     @Transactional
     public List<RoomVoiceShareResponse> createRoomVoiceShares(Long roomId, RoomVoiceShareRequest request, User user) {
@@ -100,10 +101,14 @@ public class RoomVoiceShareService {
             throw ApiException.error(ErrorCode.INVALID_REQUEST, "Duplicate voice asset ids are not allowed");
         }
 
-        List<VoiceAsset> voiceAssets = voiceAssetRepository.findAllByIdInAndOwnerId(uniqueVoiceAssetIds, userId);
-        if (voiceAssets.size() != uniqueVoiceAssetIds.size()) {
+        List<VoiceOwnership> voiceOwnerships = voiceOwnershipRepository.findAllByUserIdAndVoiceAssetIdIn(userId, uniqueVoiceAssetIds);
+        if (voiceOwnerships.size() != uniqueVoiceAssetIds.size()) {
             throw ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND);
         }
+
+        List<VoiceAsset> voiceAssets = voiceOwnerships.stream()
+                .map(VoiceOwnership::getVoiceAsset)
+                .toList();
 
         for (VoiceAsset voiceAsset : voiceAssets) {
             if (roomVoiceShareRepository.existsByRoomIdAndVoiceAssetId(roomId, voiceAsset.getId())) {

@@ -61,8 +61,16 @@ public class VoiceOwnership {
     @Column(nullable = false)
     private LocalDateTime acquiredAt = LocalDateTime.now();
 
+    public static VoiceOwnership createCreatedOwnership(User user, VoiceAsset voiceAsset) {
+        return VoiceOwnership.builder()
+                .voiceAsset(voiceAsset)
+                .user(user)
+                .acquiredBy(AcquisitionType.CREATED)
+                .build();
+    }
+
     public enum AcquisitionType {
-        OWNER_UPLOAD,
+        CREATED,
         ROOM_SHARED,
         MARKET_PURCHASED,
         ADMIN_GRANTED

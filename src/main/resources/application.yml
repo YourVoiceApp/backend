@@ -47,3 +47,8 @@ auth:
     secret: ${JWT_SECRET_BASE64:ZGV2LXNlY3JldC1rZXktZm9yLWp3dC1zaG91bGQtYmUtbG9uZy1lbm91Z2gtMTIzNDU2}
     access-expiration-seconds: 1800
     refresh-expiration-seconds: 1209600
+
+supertone:
+  api:
+    base-url: ${SUPERTONE_API_BASE_URL:https://supertoneapi.com}
+    key: ${SUPERTONE_API_KEY:}

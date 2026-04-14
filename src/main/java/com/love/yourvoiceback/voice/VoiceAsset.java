@@ -1,17 +1,7 @@
 package com.love.yourvoiceback.voice;
 
 import com.love.yourvoiceback.user.User;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -34,8 +24,8 @@ public class VoiceAsset {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "owner_user_id", nullable = false)
-    private User owner;
+    @JoinColumn(name = "creator_user_id", nullable = false)
+    private User creator;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "folder_id")
@@ -44,13 +34,8 @@ public class VoiceAsset {
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private VoiceOriginType originType;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private VoiceVisibility visibility;
+    @Column(length = 100, unique = true)
+    private String externalVoiceId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -67,16 +52,13 @@ public class VoiceAsset {
     @Column(nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    public enum VoiceOriginType {
-        UPLOADED,
-        ROOM_SHARED,
-        MARKET_PURCHASED
-    }
-
-    public enum VoiceVisibility {
-        PRIVATE,
-        ROOM_SHARED,
-        MARKET_LISTED
+    public static VoiceAsset createCloned(User creator, String title, String externalVoiceId) {
+        return VoiceAsset.builder()
+                .creator(creator)
+                .title(title)
+                .externalVoiceId(externalVoiceId)
+                .status(VoiceAssetStatus.TRAINING)
+                .build();
     }
 
     public enum VoiceAssetStatus {

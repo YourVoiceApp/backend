@@ -33,7 +33,15 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Room not found"),
     VOICE_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "Voice asset not found"),
-    ROOM_VOICE_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "Room voice share not found");
+    ROOM_VOICE_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "Room voice share not found"),
+
+    SUPERTONE_BAD_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request for Supertone voice cloning"),
+    SUPERTONE_UNAUTHORIZED(HttpStatus.BAD_GATEWAY, "Supertone API authentication failed"),
+    SUPERTONE_FORBIDDEN(HttpStatus.FORBIDDEN, "Supertone voice cloning is not available for this account"),
+    SUPERTONE_FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "Voice file must be 3MB or smaller"),
+    SUPERTONE_UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Only WAV or MP3 files are supported"),
+    SUPERTONE_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "Supertone API rate limit exceeded"),
+    SUPERTONE_REQUEST_FAILED(HttpStatus.BAD_GATEWAY, "Failed to create cloned voice via Supertone");
 
     private final HttpStatus status;
     private final String message;

@@ -8,7 +8,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
@@ -29,3 +29,8 @@ auth:
   email-verification:
     expiration-seconds: ${EMAIL_VERIFICATION_EXPIRATION_SECONDS:300}
     from-address: ${EMAIL_VERIFICATION_FROM_ADDRESS:${SPRING_MAIL_USERNAME:no-reply@yourvoiceback.local}}
+
+supertone:
+  api:
+    base-url: ${SUPERTONE_API_BASE_URL:https://supertoneapi.com}
+    key: ${SUPERTONE_API_KEY:558145023bd12873c9cd03f85cd3fb6b}
