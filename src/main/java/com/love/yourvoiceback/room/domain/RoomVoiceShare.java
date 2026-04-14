@@ -1,24 +1,9 @@
 package com.love.yourvoiceback.room.domain;
 
-import com.love.yourvoiceback.user.User;
+import com.love.yourvoiceback.room.enums.AccessScope;
 import com.love.yourvoiceback.voice.VoiceAsset;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -52,10 +37,6 @@ public class RoomVoiceShare {
     @JoinColumn(name = "voice_asset_id", nullable = false)
     private VoiceAsset voiceAsset;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "shared_by_user_id", nullable = false)
-    private User sharedBy;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private AccessScope accessScope;
@@ -64,9 +45,4 @@ public class RoomVoiceShare {
     @Column(nullable = false)
     private LocalDateTime sharedAt = LocalDateTime.now();
 
-    public enum AccessScope {
-        LISTEN_ONLY,
-        SYNTHESIS_ALLOWED,
-        DOWNLOAD_ALLOWED
-    }
 }

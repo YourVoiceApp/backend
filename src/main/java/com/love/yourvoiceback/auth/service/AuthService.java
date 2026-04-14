@@ -47,23 +47,33 @@ public class AuthService {
     @Transactional
     public AuthResponse signup(SignupRequest request) {
         emailVerificationService.ensureVerified(request.email());
+        AuthResponse response = signupWithoutEmailVerification(request);
+        emailVerificationService.clearVerification(request.email());
+        return response;
+    }
 
+    @Transactional
+    public AuthResponse signupWithoutEmailVerification(SignupRequest request) {
+        validateEmailSignupRequest(request);
+        User user = createEmailUser(request);
+        return issueTokens(user, request.deviceInfo());
+    }
+
+    private void validateEmailSignupRequest(SignupRequest request) {
         if (userRepository.existsByEmail(request.email())) {
             throw ApiException.error(ErrorCode.EMAIL_ALREADY_REGISTERED);
         }
         if (userRepository.existsByNickName(request.nickName())) {
             throw ApiException.error(ErrorCode.NICKNAME_ALREADY_TAKEN);
         }
+    }
 
-        User user = userRepository.save(User.of(
+    private User createEmailUser(SignupRequest request) {
+        return userRepository.save(User.of(
                 request.nickName(),
                 request.email(),
                 passwordEncoder.encode(request.password())
         ));
-
-        emailVerificationService.clearVerification(request.email());
-
-        return issueTokens(user, request.deviceInfo());
     }
 
     @Transactional
