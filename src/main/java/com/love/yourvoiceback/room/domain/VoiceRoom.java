@@ -1,22 +1,9 @@
 package com.love.yourvoiceback.room.domain;
 
+import com.love.yourvoiceback.room.enums.JoinPolicy;
 import com.love.yourvoiceback.user.User;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -54,6 +41,9 @@ public class VoiceRoom {
     @Column(nullable = false, length = 30)
     private JoinPolicy joinPolicy;
 
+    @Column(nullable = false)
+    private Long maxParticipants;
+
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -62,18 +52,14 @@ public class VoiceRoom {
     @Column(nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    public enum JoinPolicy {
-        INVITE_CODE_ONLY,
-        INVITE_CODE_WITH_PASSWORD,
-    }
-
-    public static VoiceRoom of(User owner, String name, String inviteCode, JoinPolicy joinPolicy, String passwordHash) {
+    public static VoiceRoom of(User owner, String name, String inviteCode, JoinPolicy joinPolicy, String passwordHash, Long maxParticipants) {
         return VoiceRoom.builder()
                 .owner(owner)
                 .name(name)
                 .inviteCode(inviteCode)
                 .joinPolicy(joinPolicy)
                 .passwordHash(passwordHash)
+                .maxParticipants(maxParticipants)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
