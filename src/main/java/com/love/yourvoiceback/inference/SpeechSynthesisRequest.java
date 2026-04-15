@@ -43,6 +43,7 @@ public class SpeechSynthesisRequest {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String text;
 
+
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
