@@ -60,16 +60,19 @@ public class VoiceService {
 
     @Transactional
     public List<OwnedVoiceAssetResponse> updateOwnedVoiceFolder(User user, VoiceOwnershipFolderUpdateRequest request) {
-        Set<Long> uniqueVoiceAssetIds = new LinkedHashSet<>(request.getVoiceAssetIds());
-        if (uniqueVoiceAssetIds.size() != request.getVoiceAssetIds().size()) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Duplicate voice asset ids are not allowed");
+        Set<String> uniqueExternalVoiceIds = new LinkedHashSet<>(request.getExternalVoiceIds());
+        if (uniqueExternalVoiceIds.size() != request.getExternalVoiceIds().size()) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Duplicate external voice ids are not allowed");
         }
 
         VoiceFolder folder = resolveOwnedFolder(request.getFolderId(), user.getId());
-        List<VoiceOwnership> voiceOwnerships = voiceOwnershipRepository.findAllByUserIdAndVoiceAssetIdIn(user.getId(), uniqueVoiceAssetIds);
+        List<VoiceOwnership> voiceOwnerships = voiceOwnershipRepository.findAllByUserIdAndVoiceAssetExternalVoiceIdIn(
+                user.getId(),
+                uniqueExternalVoiceIds
+        );
 
-        if (voiceOwnerships.size() != uniqueVoiceAssetIds.size()) {
-            throw ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND);
+        if (voiceOwnerships.size() != uniqueExternalVoiceIds.size()) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Some external voice ids were not found");
         }
 
         voiceOwnerships.forEach(voiceOwnership -> voiceOwnership.changeFolder(folder));
@@ -97,7 +100,7 @@ public class VoiceService {
                 trimmedDescription
         );
 
-        if (voiceAssetRepository.existsByExternalVoiceId(response.voiceId())) {
+        if (voiceAssetRepository.existsById(response.voiceId())) {
             throw ApiException.error(ErrorCode.INVALID_REQUEST, "Voice already exists for external voice id: " + response.voiceId());
         }
 

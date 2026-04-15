@@ -16,5 +16,5 @@ public class VoiceFolderCreateRequest {
     @Size(max = 100)
     private String name;
 
-    private Long parentFolderId;
+    private Long parentFolderId = null;
 }

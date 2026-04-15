@@ -3,17 +3,15 @@ package com.love.yourvoiceback.voice.dto.response;
 import com.love.yourvoiceback.voice.domain.VoiceAsset;
 
 public record CreateClonedVoiceAssetResponse(
-        Long voiceAssetId,
+        String voiceKey,
         String externalVoiceId,
-        String title,
-        VoiceAsset.VoiceAssetStatus status
+        String title
 ) {
     public static CreateClonedVoiceAssetResponse from(VoiceAsset voiceAsset) {
         return new CreateClonedVoiceAssetResponse(
-                voiceAsset.getId(),
                 voiceAsset.getExternalVoiceId(),
-                voiceAsset.getTitle(),
-                voiceAsset.getStatus()
+                voiceAsset.getExternalVoiceId(),
+                voiceAsset.getTitle()
         );
     }
 }

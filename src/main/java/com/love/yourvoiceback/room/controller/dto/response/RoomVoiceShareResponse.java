@@ -8,7 +8,8 @@ import java.time.LocalDateTime;
 public record RoomVoiceShareResponse(
         Long id,
         Long roomId,
-        Long voiceAssetId,
+        String voiceKey,
+        String externalVoiceId,
         String voiceTitle,
         AccessScope accessScope,
         LocalDateTime sharedAt
@@ -17,7 +18,8 @@ public record RoomVoiceShareResponse(
         return new RoomVoiceShareResponse(
                 roomVoiceShare.getId(),
                 roomVoiceShare.getRoom().getId(),
-                roomVoiceShare.getVoiceAsset().getId(),
+                roomVoiceShare.getVoiceAsset().getExternalVoiceId(),
+                roomVoiceShare.getVoiceAsset().getExternalVoiceId(),
                 roomVoiceShare.getVoiceAsset().getTitle(),
                 roomVoiceShare.getAccessScope(),
                 roomVoiceShare.getSharedAt()

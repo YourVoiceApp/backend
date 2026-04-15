@@ -14,7 +14,7 @@ import java.util.List;
 @Builder
 public class VoiceOwnershipFolderUpdateRequest {
     @NotEmpty
-    private List<Long> voiceAssetIds;
+    private List<String> externalVoiceIds;
 
     private Long folderId;
 }

@@ -17,7 +17,8 @@ public interface VoiceOwnershipRepository extends JpaRepository<VoiceOwnership, 
     @EntityGraph(attributePaths = {"voiceAsset", "folder"})
     List<VoiceOwnership> findAllByUserIdAndFolderIsNullOrderByAcquiredAtDesc(Long userId);
 
-    List<VoiceOwnership> findAllByUserIdAndVoiceAssetIdIn(Long userId, Collection<Long> voiceAssetIds);
+    @EntityGraph(attributePaths = {"voiceAsset", "folder"})
+    List<VoiceOwnership> findAllByUserIdAndVoiceAssetExternalVoiceIdIn(Long userId, Collection<String> externalVoiceIds);
 
     List<VoiceOwnership> findAllByUserIdAndFolderIdIn(Long userId, Collection<Long> folderIds);
 }

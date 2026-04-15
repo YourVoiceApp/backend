@@ -13,5 +13,5 @@ public interface RoomVoiceShareRepository extends JpaRepository<RoomVoiceShare, 
 
     Optional<RoomVoiceShare> findByIdAndRoomId(Long id, Long roomId);
 
-    boolean existsByRoomIdAndVoiceAssetId(Long roomId, Long voiceAssetId);
+    boolean existsByRoomIdAndVoiceAssetExternalVoiceId(Long roomId, String voiceAssetId);
 }

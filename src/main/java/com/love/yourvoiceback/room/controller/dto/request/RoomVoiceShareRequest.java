@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record RoomVoiceShareRequest(
-        @NotEmpty List<Long> voiceAssetIds,
+        @NotEmpty List<String> externalVoiceIds,
         @NotNull AccessScope accessScope
 ) {
 }

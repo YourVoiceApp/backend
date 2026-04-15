@@ -20,8 +20,8 @@ import java.time.LocalDateTime;
 public class VoiceAsset {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(nullable = false, length = 100)
+    private String externalVoiceId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "creator_user_id", nullable = false)
@@ -29,16 +29,6 @@ public class VoiceAsset {
 
     @Column(nullable = false, length = 255)
     private String title;
-
-    @Column(length = 100, unique = true)
-    private String externalVoiceId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private VoiceAssetStatus status;
-
-    @Column(length = 500)
-    private String sampleAudioUrl;
 
     @Builder.Default
     @Column(nullable = false)
@@ -53,16 +43,6 @@ public class VoiceAsset {
                 .creator(creator)
                 .title(title)
                 .externalVoiceId(externalVoiceId)
-                .status(VoiceAssetStatus.TRAINING)
                 .build();
-    }
-
-    public enum VoiceAssetStatus {
-        UPLOADED,
-        VALIDATING,
-        TRAINING,
-        COMPLETED,
-        FAILED,
-        DELETED
     }
 }

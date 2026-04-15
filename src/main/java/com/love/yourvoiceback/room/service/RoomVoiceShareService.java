@@ -37,7 +37,7 @@ public class RoomVoiceShareService {
     @Transactional
     public List<RoomVoiceShareResponse> createRoomVoiceShares(Long roomId, RoomVoiceShareRequest request, User user) {
         VoiceRoom room = getAccessibleRoom(roomId, user.getId());
-        List<VoiceAsset> voiceAssets = getOwnedVoiceAssets(roomId, request.voiceAssetIds(), user.getId());
+        List<VoiceAsset> voiceAssets = getOwnedVoiceAssets(roomId, request.externalVoiceIds(), user.getId());
 
         return voiceAssets.stream()
                 .map(voiceAsset -> createRoomVoiceShare(room, voiceAsset, request.accessScope()))
@@ -95,14 +95,17 @@ public class RoomVoiceShareService {
                 .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
     }
 
-    private List<VoiceAsset> getOwnedVoiceAssets(Long roomId, List<Long> voiceAssetIds, Long userId) {
-        Set<Long> uniqueVoiceAssetIds = new LinkedHashSet<>(voiceAssetIds);
-        if (uniqueVoiceAssetIds.size() != voiceAssetIds.size()) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Duplicate voice asset ids are not allowed");
+    private List<VoiceAsset> getOwnedVoiceAssets(Long roomId, List<String> externalVoiceIds, Long userId) {
+        Set<String> uniqueExternalVoiceIds = new LinkedHashSet<>(externalVoiceIds);
+        if (uniqueExternalVoiceIds.size() != externalVoiceIds.size()) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Duplicate external voice ids are not allowed");
         }
 
-        List<VoiceOwnership> voiceOwnerships = voiceOwnershipRepository.findAllByUserIdAndVoiceAssetIdIn(userId, uniqueVoiceAssetIds);
-        if (voiceOwnerships.size() != uniqueVoiceAssetIds.size()) {
+        List<VoiceOwnership> voiceOwnerships = voiceOwnershipRepository.findAllByUserIdAndVoiceAssetExternalVoiceIdIn(
+                userId,
+                uniqueExternalVoiceIds
+        );
+        if (voiceOwnerships.size() != uniqueExternalVoiceIds.size()) {
             throw ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND);
         }
 
@@ -111,10 +114,10 @@ public class RoomVoiceShareService {
                 .toList();
 
         for (VoiceAsset voiceAsset : voiceAssets) {
-            if (roomVoiceShareRepository.existsByRoomIdAndVoiceAssetId(roomId, voiceAsset.getId())) {
+            if (roomVoiceShareRepository.existsByRoomIdAndVoiceAssetExternalVoiceId(roomId, voiceAsset.getExternalVoiceId())) {
                 throw ApiException.error(
                         ErrorCode.INVALID_REQUEST,
-                        "Voice asset is already shared in this room: " + voiceAsset.getId()
+                        "Voice asset is already shared in this room: " + voiceAsset.getExternalVoiceId()
                 );
             }
         }
