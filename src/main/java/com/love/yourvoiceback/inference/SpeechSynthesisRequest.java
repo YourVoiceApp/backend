@@ -4,8 +4,6 @@ import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.domain.VoiceAsset;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -45,34 +43,15 @@ public class SpeechSynthesisRequest {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String text;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private Purpose purpose;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private RequestStatus status;
-
-    @Column(length = 1000)
-    private String failureReason;
-
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    private LocalDateTime completedAt;
-
-    public enum Purpose {
-        LISTEN,
-        PREVIEW,
-        ROOM_SHARE,
-        TEST
-    }
-
-    public enum RequestStatus {
-        REQUESTED,
-        PROCESSING,
-        COMPLETED,
-        FAILED
+    public static SpeechSynthesisRequest createListenRequest(User requestedBy, VoiceAsset voiceAsset, String text) {
+        return SpeechSynthesisRequest.builder()
+                .requestedBy(requestedBy)
+                .voiceAsset(voiceAsset)
+                .text(text)
+                .build();
     }
 }

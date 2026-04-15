@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface VoiceOwnershipRepository extends JpaRepository<VoiceOwnership, Long> {
     @EntityGraph(attributePaths = {"voiceAsset", "folder"})
@@ -21,4 +22,7 @@ public interface VoiceOwnershipRepository extends JpaRepository<VoiceOwnership, 
     List<VoiceOwnership> findAllByUserIdAndVoiceAssetExternalVoiceIdIn(Long userId, Collection<String> externalVoiceIds);
 
     List<VoiceOwnership> findAllByUserIdAndFolderIdIn(Long userId, Collection<Long> folderIds);
+
+    @EntityGraph(attributePaths = {"voiceAsset", "folder"})
+    Optional<VoiceOwnership> findByIdAndUserId(Long id, Long userId);
 }

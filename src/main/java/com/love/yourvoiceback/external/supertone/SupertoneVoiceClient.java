@@ -3,6 +3,7 @@ package com.love.yourvoiceback.external.supertone;
 import com.love.yourvoiceback.common.exception.ApiException;
 import com.love.yourvoiceback.common.exception.ErrorCode;
 import com.love.yourvoiceback.external.supertone.dto.SupertoneCreateClonedVoiceResponse;
+import com.love.yourvoiceback.external.supertone.dto.SupertoneTextToSpeechResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Map;
 
 @Component
 public class SupertoneVoiceClient {
@@ -63,6 +65,38 @@ public class SupertoneVoiceClient {
             }
 
             return response;
+        } catch (RestClientResponseException ex) {
+            throw mapSupertoneException(ex);
+        } catch (RestClientException ex) {
+            throw ApiException.error(
+                    ErrorCode.SUPERTONE_REQUEST_FAILED,
+                    "Failed to call Supertone API: " + ex.getMessage()
+            );
+        }
+    }
+
+    public SupertoneTextToSpeechResponse createSpeech(
+            String voiceId,
+            Map<String, Object> requestBody
+    ) {
+        if (!StringUtils.hasText(apiKey)) {
+            throw ApiException.error(ErrorCode.SUPERTONE_UNAUTHORIZED, "Supertone API key is not configured");
+        }
+
+        try {
+            return restClient.post()
+                    .uri("/v1/text-to-speech/{voice_id}", voiceId)
+                    .header("x-sup-api-key", apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .exchange((request, response) -> {
+                        MediaType contentType = response.getHeaders().getContentType();
+                        byte[] body = response.getBody().readAllBytes();
+                        return new SupertoneTextToSpeechResponse(
+                                body,
+                                contentType != null ? contentType : MediaType.APPLICATION_OCTET_STREAM
+                        );
+                    });
         } catch (RestClientResponseException ex) {
             throw mapSupertoneException(ex);
         } catch (RestClientException ex) {

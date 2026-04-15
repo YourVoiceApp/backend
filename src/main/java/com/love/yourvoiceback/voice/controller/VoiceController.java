@@ -3,6 +3,7 @@ package com.love.yourvoiceback.voice.controller;
 import com.love.yourvoiceback.common.security.CurrentUser;
 import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.dto.request.VoiceOwnershipFolderUpdateRequest;
+import com.love.yourvoiceback.voice.dto.request.VoiceTextToSpeechRequest;
 import com.love.yourvoiceback.voice.dto.response.CreateClonedVoiceAssetResponse;
 import com.love.yourvoiceback.voice.dto.response.OwnedVoiceAssetResponse;
 import com.love.yourvoiceback.voice.service.VoiceService;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -63,5 +65,18 @@ public class VoiceController {
             @RequestParam(value = "description", required = false) String description
     ) {
         return ResponseEntity.ok(voiceService.createClonedVoice(user, file, name, description));
+    }
+
+    @PostMapping("/{ownershipId}/text-to-speech")
+    @Operation(summary = "선택한 내 음성과 텍스트를 이용해 TTS 오디오를 생성합니다.")
+    public ResponseEntity<byte[]> createSpeech(
+            @PathVariable Long ownershipId,
+            @Valid @RequestBody VoiceTextToSpeechRequest request,
+            @CurrentUser User user
+    ) {
+        var response = voiceService.createSpeech(user, ownershipId, request);
+        return ResponseEntity.ok()
+                .contentType(response.contentType())
+                .body(response.body());
     }
 }

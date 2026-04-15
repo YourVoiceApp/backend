@@ -4,11 +4,15 @@ import com.love.yourvoiceback.common.exception.ApiException;
 import com.love.yourvoiceback.common.exception.ErrorCode;
 import com.love.yourvoiceback.external.supertone.SupertoneVoiceClient;
 import com.love.yourvoiceback.external.supertone.dto.SupertoneCreateClonedVoiceResponse;
+import com.love.yourvoiceback.external.supertone.dto.SupertoneTextToSpeechResponse;
+import com.love.yourvoiceback.inference.SpeechSynthesisRequest;
+import com.love.yourvoiceback.inference.SpeechSynthesisRequestRepository;
 import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.domain.VoiceAsset;
 import com.love.yourvoiceback.voice.domain.VoiceFolder;
 import com.love.yourvoiceback.voice.domain.VoiceOwnership;
 import com.love.yourvoiceback.voice.dto.request.VoiceOwnershipFolderUpdateRequest;
+import com.love.yourvoiceback.voice.dto.request.VoiceTextToSpeechRequest;
 import com.love.yourvoiceback.voice.dto.response.CreateClonedVoiceAssetResponse;
 import com.love.yourvoiceback.voice.dto.response.OwnedVoiceAssetResponse;
 import com.love.yourvoiceback.voice.repository.VoiceAssetRepository;
@@ -22,7 +26,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -30,11 +36,15 @@ import java.util.Set;
 public class VoiceService {
 
     private static final long MAX_FILE_SIZE_BYTES = 3L * 1024L * 1024L;
+    private static final String DEFAULT_TTS_LANGUAGE = "ko";
+    private static final String DEFAULT_TTS_MODEL = "sona_speech_1";
+    private static final String DEFAULT_TTS_OUTPUT_FORMAT = "wav";
 
     private final SupertoneVoiceClient supertoneVoiceClient;
     private final VoiceAssetRepository voiceAssetRepository;
     private final VoiceOwnershipRepository voiceOwnershipRepository;
     private final VoiceFolderRepository voiceFolderRepository;
+    private final SpeechSynthesisRequestRepository speechSynthesisRequestRepository;
 
     @Transactional(readOnly = true)
     public List<OwnedVoiceAssetResponse> getOwnedVoices(User user, Long folderId) {
@@ -114,6 +124,28 @@ public class VoiceService {
         return CreateClonedVoiceAssetResponse.from(voiceAsset);
     }
 
+    @Transactional
+    public SupertoneTextToSpeechResponse createSpeech(User user, Long ownershipId, VoiceTextToSpeechRequest request) {
+        VoiceOwnership voiceOwnership = voiceOwnershipRepository.findByIdAndUserId(ownershipId, user.getId())
+                .orElseThrow(() -> ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND));
+
+        SpeechSynthesisRequest speechSynthesisRequest = SpeechSynthesisRequest.createListenRequest(
+                user,
+                voiceOwnership.getVoiceAsset(),
+                request.getText()
+        );
+        speechSynthesisRequestRepository.save(speechSynthesisRequest);
+
+        try {
+            return supertoneVoiceClient.createSpeech(
+                    voiceOwnership.getVoiceAsset().getExternalVoiceId(),
+                    buildTextToSpeechRequestBody(request)
+            );
+        } catch (RuntimeException ex) {
+            throw ex;
+        }
+    }
+
     private void validateCreateClonedVoiceRequest(MultipartFile file, String name) {
         if (file == null || file.isEmpty()) {
             throw ApiException.error(ErrorCode.INVALID_REQUEST, "Audio file is required");
@@ -141,6 +173,16 @@ public class VoiceService {
 
     private void validateOwnedFolder(Long folderId, Long userId) {
         resolveOwnedFolder(folderId, userId);
+    }
+
+    private Map<String, Object> buildTextToSpeechRequestBody(VoiceTextToSpeechRequest request) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("text", request.getText());
+        body.put("language", DEFAULT_TTS_LANGUAGE);
+        body.put("model", DEFAULT_TTS_MODEL);
+        body.put("output_format", DEFAULT_TTS_OUTPUT_FORMAT);
+        body.put("include_phonemes", false);
+        return body;
     }
 
     private VoiceFolder resolveOwnedFolder(Long folderId, Long userId) {
