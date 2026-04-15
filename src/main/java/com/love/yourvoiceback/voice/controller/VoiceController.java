@@ -6,10 +6,16 @@ import com.love.yourvoiceback.voice.dto.request.VoiceOwnershipFolderUpdateReques
 import com.love.yourvoiceback.voice.dto.request.VoiceTextToSpeechRequest;
 import com.love.yourvoiceback.voice.dto.response.CreateClonedVoiceAssetResponse;
 import com.love.yourvoiceback.voice.dto.response.OwnedVoiceAssetResponse;
+import com.love.yourvoiceback.voice.dto.response.VoiceTextToSpeechResponse;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import com.love.yourvoiceback.voice.service.VoiceService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -68,15 +74,58 @@ public class VoiceController {
     }
 
     @PostMapping("/{ownershipId}/text-to-speech")
-    @Operation(summary = "선택한 내 음성과 텍스트를 이용해 TTS 오디오를 생성합니다.")
-    public ResponseEntity<byte[]> createSpeech(
+    @Operation(summary = "선택한 내 음성과 텍스트를 이용해 TTS 오디오를 생성하고 재생/다운로드 URL을 반환합니다.")
+    public ResponseEntity<VoiceTextToSpeechResponse> createSpeech(
             @PathVariable Long ownershipId,
             @Valid @RequestBody VoiceTextToSpeechRequest request,
             @CurrentUser User user
     ) {
-        var response = voiceService.createSpeech(user, ownershipId, request);
+        return ResponseEntity.ok(voiceService.createSpeech(user, ownershipId, request));
+    }
+
+    @GetMapping(
+            value = "/generated-audios/{generatedAudioId}/stream",
+            produces = "audio/mpeg"
+    )
+    @Operation(summary = "생성된 TTS 오디오를 앱에서 바로 재생할 수 있도록 스트리밍합니다.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Binary mp3 audio stream",
+            content = @Content(mediaType = "audio/mpeg", schema = @Schema(type = "string", format = "binary"))
+    )
+    public ResponseEntity<byte[]> streamGeneratedAudio(
+            @PathVariable Long generatedAudioId,
+            @CurrentUser User user
+    ) {
+        var response = voiceService.getGeneratedAudioForStream(user, generatedAudioId);
         return ResponseEntity.ok()
                 .contentType(response.contentType())
+                .contentLength(response.body().length)
+                .body(response.body());
+    }
+
+    @GetMapping(
+            value = "/generated-audios/{generatedAudioId}/download",
+            produces = "audio/mpeg"
+    )
+    @Operation(summary = "생성된 TTS 오디오를 다운로드합니다.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Binary mp3 audio download",
+            content = @Content(mediaType = "audio/mpeg", schema = @Schema(type = "string", format = "binary"))
+    )
+    public ResponseEntity<byte[]> downloadGeneratedAudio(
+            @PathVariable Long generatedAudioId,
+            @CurrentUser User user
+    ) {
+        var response = voiceService.getGeneratedAudioForDownload(user, generatedAudioId);
+        return ResponseEntity.ok()
+                .contentType(response.contentType())
+                .contentLength(response.body().length)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(response.filename()).build().toString()
+                )
                 .body(response.body());
     }
 }

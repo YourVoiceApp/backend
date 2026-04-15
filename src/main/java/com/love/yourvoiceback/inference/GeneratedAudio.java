@@ -44,4 +44,15 @@ public class GeneratedAudio {
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    public static GeneratedAudio create(SpeechSynthesisRequest request, String audioUrl) {
+        return GeneratedAudio.builder()
+                .request(request)
+                .audioUrl(audioUrl)
+                .build();
+    }
+
+    public void updateAudioUrl(String audioUrl) {
+        this.audioUrl = audioUrl;
+    }
 }

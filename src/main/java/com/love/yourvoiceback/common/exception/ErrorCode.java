@@ -34,6 +34,7 @@ public enum ErrorCode {
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Room not found"),
     VOICE_FOLDER_NOT_FOUND(HttpStatus.NOT_FOUND, "Voice folder not found"),
     VOICE_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "Voice asset not found"),
+    GENERATED_AUDIO_NOT_FOUND(HttpStatus.NOT_FOUND, "Generated audio not found"),
     ROOM_VOICE_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "Room voice share not found"),
 
     SUPERTONE_BAD_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request for Supertone voice cloning"),

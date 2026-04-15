@@ -5,6 +5,9 @@ import com.love.yourvoiceback.common.exception.ErrorCode;
 import com.love.yourvoiceback.external.supertone.SupertoneVoiceClient;
 import com.love.yourvoiceback.external.supertone.dto.SupertoneCreateClonedVoiceResponse;
 import com.love.yourvoiceback.external.supertone.dto.SupertoneTextToSpeechResponse;
+import com.love.yourvoiceback.inference.GeneratedAudio;
+import com.love.yourvoiceback.inference.GeneratedAudioRepository;
+import com.love.yourvoiceback.inference.GeneratedAudioStorage;
 import com.love.yourvoiceback.inference.SpeechSynthesisRequest;
 import com.love.yourvoiceback.inference.SpeechSynthesisRequestRepository;
 import com.love.yourvoiceback.user.User;
@@ -15,10 +18,12 @@ import com.love.yourvoiceback.voice.dto.request.VoiceOwnershipFolderUpdateReques
 import com.love.yourvoiceback.voice.dto.request.VoiceTextToSpeechRequest;
 import com.love.yourvoiceback.voice.dto.response.CreateClonedVoiceAssetResponse;
 import com.love.yourvoiceback.voice.dto.response.OwnedVoiceAssetResponse;
+import com.love.yourvoiceback.voice.dto.response.VoiceTextToSpeechResponse;
 import com.love.yourvoiceback.voice.repository.VoiceAssetRepository;
 import com.love.yourvoiceback.voice.repository.VoiceFolderRepository;
 import com.love.yourvoiceback.voice.repository.VoiceOwnershipRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -38,13 +43,15 @@ public class VoiceService {
     private static final long MAX_FILE_SIZE_BYTES = 3L * 1024L * 1024L;
     private static final String DEFAULT_TTS_LANGUAGE = "ko";
     private static final String DEFAULT_TTS_MODEL = "sona_speech_1";
-    private static final String DEFAULT_TTS_OUTPUT_FORMAT = "wav";
+    private static final String DEFAULT_TTS_OUTPUT_FORMAT = "mp3";
 
     private final SupertoneVoiceClient supertoneVoiceClient;
     private final VoiceAssetRepository voiceAssetRepository;
     private final VoiceOwnershipRepository voiceOwnershipRepository;
     private final VoiceFolderRepository voiceFolderRepository;
     private final SpeechSynthesisRequestRepository speechSynthesisRequestRepository;
+    private final GeneratedAudioRepository generatedAudioRepository;
+    private final GeneratedAudioStorage generatedAudioStorage;
 
     @Transactional(readOnly = true)
     public List<OwnedVoiceAssetResponse> getOwnedVoices(User user, Long folderId) {
@@ -125,7 +132,7 @@ public class VoiceService {
     }
 
     @Transactional
-    public SupertoneTextToSpeechResponse createSpeech(User user, Long ownershipId, VoiceTextToSpeechRequest request) {
+    public VoiceTextToSpeechResponse createSpeech(User user, Long ownershipId, VoiceTextToSpeechRequest request) {
         VoiceOwnership voiceOwnership = voiceOwnershipRepository.findByIdAndUserId(ownershipId, user.getId())
                 .orElseThrow(() -> ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND));
 
@@ -136,14 +143,37 @@ public class VoiceService {
         );
         speechSynthesisRequestRepository.save(speechSynthesisRequest);
 
-        try {
-            return supertoneVoiceClient.createSpeech(
-                    voiceOwnership.getVoiceAsset().getExternalVoiceId(),
-                    buildTextToSpeechRequestBody(request)
-            );
-        } catch (RuntimeException ex) {
-            throw ex;
-        }
+        SupertoneTextToSpeechResponse response = supertoneVoiceClient.createSpeech(
+                voiceOwnership.getVoiceAsset().getExternalVoiceId(),
+                buildTextToSpeechRequestBody(request)
+        );
+
+        GeneratedAudio generatedAudio = generatedAudioRepository.save(
+                GeneratedAudio.create(speechSynthesisRequest, "pending")
+        );
+        String storedFilename = generatedAudioStorage.save(
+                generatedAudio.getId(),
+                response.body(),
+                response.contentType()
+        );
+        generatedAudio.updateAudioUrl(storedFilename);
+
+        return VoiceTextToSpeechResponse.builder()
+                .speechRequestId(speechSynthesisRequest.getId())
+                .generatedAudioId(generatedAudio.getId())
+                .streamUrl(buildGeneratedAudioStreamUrl(generatedAudio.getId()))
+                .downloadUrl(buildGeneratedAudioDownloadUrl(generatedAudio.getId()))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public GeneratedAudioFileResponse getGeneratedAudioForStream(User user, Long generatedAudioId) {
+        return buildGeneratedAudioFileResponse(user, generatedAudioId);
+    }
+
+    @Transactional(readOnly = true)
+    public GeneratedAudioFileResponse getGeneratedAudioForDownload(User user, Long generatedAudioId) {
+        return buildGeneratedAudioFileResponse(user, generatedAudioId);
     }
 
     private void validateCreateClonedVoiceRequest(MultipartFile file, String name) {
@@ -192,5 +222,34 @@ public class VoiceService {
 
         return voiceFolderRepository.findByIdAndOwnerId(folderId, userId)
                 .orElseThrow(() -> ApiException.error(ErrorCode.VOICE_FOLDER_NOT_FOUND));
+    }
+
+    private GeneratedAudioFileResponse buildGeneratedAudioFileResponse(User user, Long generatedAudioId) {
+        GeneratedAudio generatedAudio = generatedAudioRepository.findById(generatedAudioId)
+                .orElseThrow(() -> ApiException.error(ErrorCode.GENERATED_AUDIO_NOT_FOUND));
+
+        if (!generatedAudio.getRequest().getRequestedBy().getId().equals(user.getId())) {
+            throw ApiException.error(ErrorCode.GENERATED_AUDIO_NOT_FOUND);
+        }
+
+        String storedFilename = generatedAudio.getAudioUrl();
+        MediaType contentType = generatedAudioStorage.resolveContentType(storedFilename);
+        byte[] body = generatedAudioStorage.read(storedFilename);
+        String downloadFilename = "voice-" + generatedAudioId + (
+                MediaType.valueOf("audio/mpeg").includes(contentType) ? ".mp3" : ".wav"
+        );
+
+        return new GeneratedAudioFileResponse(body, contentType, downloadFilename);
+    }
+
+    private String buildGeneratedAudioStreamUrl(Long generatedAudioId) {
+        return "/voices/generated-audios/" + generatedAudioId + "/stream";
+    }
+
+    private String buildGeneratedAudioDownloadUrl(Long generatedAudioId) {
+        return "/voices/generated-audios/" + generatedAudioId + "/download";
+    }
+
+    public record GeneratedAudioFileResponse(byte[] body, MediaType contentType, String filename) {
     }
 }
