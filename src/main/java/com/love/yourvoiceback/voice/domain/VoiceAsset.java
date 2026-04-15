@@ -1,4 +1,4 @@
-package com.love.yourvoiceback.voice;
+package com.love.yourvoiceback.voice.domain;
 
 import com.love.yourvoiceback.user.User;
 import jakarta.persistence.*;
@@ -26,10 +26,6 @@ public class VoiceAsset {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "creator_user_id", nullable = false)
     private User creator;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "folder_id")
-    private VoiceFolder folder;
 
     @Column(nullable = false, length = 255)
     private String title;

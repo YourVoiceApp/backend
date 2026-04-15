@@ -1,7 +1,7 @@
 package com.love.yourvoiceback.market;
 
 import com.love.yourvoiceback.user.User;
-import com.love.yourvoiceback.voice.VoiceAsset;
+import com.love.yourvoiceback.voice.domain.VoiceAsset;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

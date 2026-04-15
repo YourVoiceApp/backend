@@ -5,18 +5,25 @@ import com.love.yourvoiceback.common.exception.ErrorCode;
 import com.love.yourvoiceback.external.supertone.SupertoneVoiceClient;
 import com.love.yourvoiceback.external.supertone.dto.SupertoneCreateClonedVoiceResponse;
 import com.love.yourvoiceback.user.User;
-import com.love.yourvoiceback.voice.VoiceAsset;
-import com.love.yourvoiceback.voice.VoiceAssetRepository;
-import com.love.yourvoiceback.voice.VoiceOwnership;
-import com.love.yourvoiceback.voice.VoiceOwnershipRepository;
-import com.love.yourvoiceback.voice.dto.CreateClonedVoiceAssetResponse;
+import com.love.yourvoiceback.voice.domain.VoiceAsset;
+import com.love.yourvoiceback.voice.domain.VoiceFolder;
+import com.love.yourvoiceback.voice.domain.VoiceOwnership;
+import com.love.yourvoiceback.voice.dto.request.VoiceOwnershipFolderUpdateRequest;
+import com.love.yourvoiceback.voice.dto.response.CreateClonedVoiceAssetResponse;
+import com.love.yourvoiceback.voice.dto.response.OwnedVoiceAssetResponse;
+import com.love.yourvoiceback.voice.repository.VoiceAssetRepository;
+import com.love.yourvoiceback.voice.repository.VoiceFolderRepository;
+import com.love.yourvoiceback.voice.repository.VoiceOwnershipRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +34,50 @@ public class VoiceService {
     private final SupertoneVoiceClient supertoneVoiceClient;
     private final VoiceAssetRepository voiceAssetRepository;
     private final VoiceOwnershipRepository voiceOwnershipRepository;
+    private final VoiceFolderRepository voiceFolderRepository;
+
+    @Transactional(readOnly = true)
+    public List<OwnedVoiceAssetResponse> getOwnedVoices(User user, Long folderId) {
+        if (folderId == null) {
+            return voiceOwnershipRepository.findAllByUserIdOrderByAcquiredAtDesc(user.getId()).stream()
+                    .map(OwnedVoiceAssetResponse::from)
+                    .toList();
+        }
+
+        validateOwnedFolder(folderId, user.getId());
+
+        return voiceOwnershipRepository.findAllByUserIdAndFolderIdOrderByAcquiredAtDesc(user.getId(), folderId).stream()
+                .map(OwnedVoiceAssetResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OwnedVoiceAssetResponse> getUnassignedOwnedVoices(User user) {
+        return voiceOwnershipRepository.findAllByUserIdAndFolderIsNullOrderByAcquiredAtDesc(user.getId()).stream()
+                .map(OwnedVoiceAssetResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public List<OwnedVoiceAssetResponse> updateOwnedVoiceFolder(User user, VoiceOwnershipFolderUpdateRequest request) {
+        Set<Long> uniqueVoiceAssetIds = new LinkedHashSet<>(request.getVoiceAssetIds());
+        if (uniqueVoiceAssetIds.size() != request.getVoiceAssetIds().size()) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Duplicate voice asset ids are not allowed");
+        }
+
+        VoiceFolder folder = resolveOwnedFolder(request.getFolderId(), user.getId());
+        List<VoiceOwnership> voiceOwnerships = voiceOwnershipRepository.findAllByUserIdAndVoiceAssetIdIn(user.getId(), uniqueVoiceAssetIds);
+
+        if (voiceOwnerships.size() != uniqueVoiceAssetIds.size()) {
+            throw ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND);
+        }
+
+        voiceOwnerships.forEach(voiceOwnership -> voiceOwnership.changeFolder(folder));
+
+        return voiceOwnerships.stream()
+                .map(OwnedVoiceAssetResponse::from)
+                .toList();
+    }
 
     @Transactional
     public CreateClonedVoiceAssetResponse createClonedVoice(
@@ -83,5 +134,18 @@ public class VoiceService {
         if (!(lowerCaseFileName.endsWith(".wav") || lowerCaseFileName.endsWith(".mp3"))) {
             throw ApiException.error(ErrorCode.SUPERTONE_UNSUPPORTED_MEDIA_TYPE);
         }
+    }
+
+    private void validateOwnedFolder(Long folderId, Long userId) {
+        resolveOwnedFolder(folderId, userId);
+    }
+
+    private VoiceFolder resolveOwnedFolder(Long folderId, Long userId) {
+        if (folderId == null) {
+            return null;
+        }
+
+        return voiceFolderRepository.findByIdAndOwnerId(folderId, userId)
+                .orElseThrow(() -> ApiException.error(ErrorCode.VOICE_FOLDER_NOT_FOUND));
     }
 }

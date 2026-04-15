@@ -1,7 +1,7 @@
 package com.love.yourvoiceback.training;
 
 import com.love.yourvoiceback.user.User;
-import com.love.yourvoiceback.voice.VoiceFolder;
+import com.love.yourvoiceback.voice.domain.VoiceFolder;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -46,6 +46,10 @@ public class VoiceTrainingJob {
     private LocalDateTime startedAt;
 
     private LocalDateTime completedAt;
+
+    public void clearRequestedFolder() {
+        this.requestedFolder = null;
+    }
 
     public enum TrainingStatus {
         UPLOADED,

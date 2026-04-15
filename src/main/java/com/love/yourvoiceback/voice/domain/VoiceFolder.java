@@ -1,4 +1,4 @@
-package com.love.yourvoiceback.voice;
+package com.love.yourvoiceback.voice.domain;
 
 import com.love.yourvoiceback.user.User;
 import jakarta.persistence.Column;
@@ -55,9 +55,6 @@ public class VoiceFolder {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false)
-    private boolean systemFolder;
-
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -65,4 +62,31 @@ public class VoiceFolder {
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    public static VoiceFolder of(User user, VoiceFolder parentFolder, String folderName) {
+        VoiceFolder voiceFolder = VoiceFolder.builder()
+                .owner(user)
+                .name(folderName)
+                .build();
+        voiceFolder.changeParent(parentFolder);
+        return voiceFolder;
+    }
+
+    public void changeParent(VoiceFolder parentFolder) {
+        if (this.parent != null) {
+            this.parent.getChildren().remove(this);
+        }
+
+        this.parent = parentFolder;
+
+        if (parentFolder != null && !parentFolder.getChildren().contains(this)) {
+            parentFolder.getChildren().add(this);
+        }
+    }
+
+    public void updateFolder(String folderName, VoiceFolder parentFolder) {
+        changeParent(parentFolder);
+        this.name = folderName;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

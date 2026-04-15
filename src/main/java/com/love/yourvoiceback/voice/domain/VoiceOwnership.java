@@ -1,4 +1,4 @@
-package com.love.yourvoiceback.voice;
+package com.love.yourvoiceback.voice.domain;
 
 import com.love.yourvoiceback.market.VoicePurchase;
 import com.love.yourvoiceback.user.User;
@@ -49,6 +49,10 @@ public class VoiceOwnership {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "folder_id")
+    private VoiceFolder folder;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "purchase_id", unique = true)
     private VoicePurchase purchase;
@@ -67,6 +71,14 @@ public class VoiceOwnership {
                 .user(user)
                 .acquiredBy(AcquisitionType.CREATED)
                 .build();
+    }
+
+    public void clearFolder() {
+        this.folder = null;
+    }
+
+    public void changeFolder(VoiceFolder folder) {
+        this.folder = folder;
     }
 
     public enum AcquisitionType {

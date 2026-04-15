@@ -32,6 +32,7 @@ public enum ErrorCode {
     CURRENT_PASSWORD_INCORRECT(HttpStatus.BAD_REQUEST, "Current password is incorrect"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "Room not found"),
+    VOICE_FOLDER_NOT_FOUND(HttpStatus.NOT_FOUND, "Voice folder not found"),
     VOICE_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "Voice asset not found"),
     ROOM_VOICE_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "Room voice share not found"),
 

@@ -1,6 +1,6 @@
-package com.love.yourvoiceback.voice.dto;
+package com.love.yourvoiceback.voice.dto.response;
 
-import com.love.yourvoiceback.voice.VoiceAsset;
+import com.love.yourvoiceback.voice.domain.VoiceAsset;
 
 public record CreateClonedVoiceAssetResponse(
         Long voiceAssetId,

@@ -1,7 +1,7 @@
 package com.love.yourvoiceback.room.domain;
 
 import com.love.yourvoiceback.room.enums.AccessScope;
-import com.love.yourvoiceback.voice.VoiceAsset;
+import com.love.yourvoiceback.voice.domain.VoiceAsset;
 import jakarta.persistence.*;
 import lombok.*;
 
