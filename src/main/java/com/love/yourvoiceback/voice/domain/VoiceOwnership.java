@@ -1,6 +1,5 @@
 package com.love.yourvoiceback.voice.domain;
 
-import com.love.yourvoiceback.market.VoicePurchase;
 import com.love.yourvoiceback.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,7 +11,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -53,10 +51,6 @@ public class VoiceOwnership {
     @JoinColumn(name = "folder_id")
     private VoiceFolder folder;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "purchase_id", unique = true)
-    private VoicePurchase purchase;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private AcquisitionType acquiredBy;
@@ -84,7 +78,6 @@ public class VoiceOwnership {
     public enum AcquisitionType {
         CREATED,
         ROOM_SHARED,
-        MARKET_PURCHASED,
         ADMIN_GRANTED
     }
 }

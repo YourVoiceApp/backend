@@ -18,7 +18,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -45,9 +44,6 @@ public class PaymentOrder {
     @Column(nullable = false, length = 100)
     private String productId;
 
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal amount;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status;
@@ -58,10 +54,13 @@ public class PaymentOrder {
 
     private LocalDateTime confirmedAt;
 
+    public void markPaid(LocalDateTime confirmedAt) {
+        this.status = OrderStatus.PAID;
+        this.confirmedAt = confirmedAt;
+    }
+
     public enum ProductType {
-        ADS_REMOVAL,
-        VOICE_PURCHASE,
-        SUBSCRIPTION
+        ADS_REMOVAL
     }
 
     public enum OrderStatus {

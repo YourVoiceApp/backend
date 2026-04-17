@@ -49,9 +49,17 @@ public class Entitlement {
 
     private LocalDateTime expiredAt;
 
+    public boolean isCurrentlyActive() {
+        return active && (expiredAt == null || expiredAt.isAfter(LocalDateTime.now()));
+    }
+
+    public void activate(LocalDateTime startedAt) {
+        this.active = true;
+        this.startedAt = startedAt;
+        this.expiredAt = null;
+    }
+
     public enum EntitlementCode {
-        ADS_FREE,
-        MARKET_BUYER,
-        PREMIUM_SUPPORT
+        ADS_FREE
     }
 }

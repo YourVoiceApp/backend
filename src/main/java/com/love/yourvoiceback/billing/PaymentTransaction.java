@@ -56,10 +56,6 @@ public class PaymentTransaction {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public enum PaymentProvider {
-        APPLE,
-        GOOGLE,
-        KAKAO_PAY,
-        TOSS,
-        MANUAL
+        GOOGLE
     }
 }

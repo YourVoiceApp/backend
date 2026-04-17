@@ -1,5 +1,10 @@
 package com.love.yourvoiceback.user;
 
+import com.love.yourvoiceback.billing.Entitlement;
+import com.love.yourvoiceback.billing.EntitlementRepository;
+import com.love.yourvoiceback.billing.PaymentOrder;
+import com.love.yourvoiceback.billing.PaymentOrderRepository;
+import com.love.yourvoiceback.billing.PaymentTransactionRepository;
 import com.love.yourvoiceback.auth.repository.RefreshTokenRepository;
 import com.love.yourvoiceback.auth.repository.UserSocialAccountRepository;
 import com.love.yourvoiceback.common.exception.ApiException;
@@ -19,14 +24,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final Entitlement.EntitlementCode ADS_FREE = Entitlement.EntitlementCode.ADS_FREE;
+
     private final UserRepository userRepository;
     private final UserSocialAccountRepository userSocialAccountRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final EntitlementRepository entitlementRepository;
+    private final PaymentOrderRepository paymentOrderRepository;
+    private final PaymentTransactionRepository paymentTransactionRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public MeResponse getMe(Long userId) {
-        return MeResponse.from(getUser(userId));
+        User user = getUser(userId);
+        boolean adsFree = entitlementRepository.existsByUserIdAndCodeAndActiveTrue(userId, ADS_FREE);
+        return MeResponse.from(user, adsFree);
     }
 
     @Transactional
@@ -38,7 +50,8 @@ public class UserService {
         }
 
         user.setNickName(request.nickName());
-        return MeResponse.from(user);
+        boolean adsFree = entitlementRepository.existsByUserIdAndCodeAndActiveTrue(userId, ADS_FREE);
+        return MeResponse.from(user, adsFree);
     }
 
     @Transactional
@@ -72,6 +85,14 @@ public class UserService {
         getUser(userId);
         refreshTokenRepository.deleteAllByUserId(userId);
         userSocialAccountRepository.deleteAllByUserId(userId);
+        List<Long> paymentOrderIds = paymentOrderRepository.findAllByUserId(userId).stream()
+                .map(PaymentOrder::getId)
+                .toList();
+        if (!paymentOrderIds.isEmpty()) {
+            paymentTransactionRepository.deleteAllByOrderIdIn(paymentOrderIds);
+        }
+        paymentOrderRepository.deleteAllByUserId(userId);
+        entitlementRepository.deleteAllByUserId(userId);
         userRepository.deleteById(userId);
     }
 
