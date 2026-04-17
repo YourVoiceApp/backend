@@ -9,6 +9,8 @@ import com.love.yourvoiceback.voice.domain.VoiceFolder;
 import com.love.yourvoiceback.voice.domain.VoiceOwnership;
 import com.love.yourvoiceback.voice.dto.request.VoiceFolderCreateRequest;
 import com.love.yourvoiceback.voice.dto.request.VoiceFolderUpdateRequest;
+import com.love.yourvoiceback.voice.dto.response.OwnedVoiceAssetResponse;
+import com.love.yourvoiceback.voice.dto.response.VoiceFolderContentsResponse;
 import com.love.yourvoiceback.voice.dto.response.VoiceFolderResponse;
 import com.love.yourvoiceback.voice.repository.VoiceFolderRepository;
 import com.love.yourvoiceback.voice.repository.VoiceOwnershipRepository;
@@ -16,7 +18,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,26 +42,29 @@ public class VoiceFolderService {
 
         VoiceFolder voiceFolder = VoiceFolder.of(user, parentFolder, folderName);
 
-        return VoiceFolderResponse.from(voiceFolderRepository.save(voiceFolder));
+        return buildFolderResponse(voiceFolderRepository.save(voiceFolder), user.getId());
     }
 
     @Transactional(readOnly = true)
-    public List<VoiceFolderResponse> getFolders(Long parentFolderId, User user) {
-        if (parentFolderId != null) {
-            getOwnedFolder(parentFolderId, user.getId());
-            return voiceFolderRepository.findAllByOwnerIdAndParentIdOrderByCreatedAtAsc(user.getId(), parentFolderId).stream()
-                    .map(VoiceFolderResponse::from)
+    public VoiceFolderContentsResponse getFolderContents(Long parentFolderId, User user) {
+        List<VoiceFolderResponse> folders = getChildFolderResponses(parentFolderId, user.getId());
+        List<OwnedVoiceAssetResponse> voices;
+
+        if (parentFolderId == null) {
+            voices = voiceOwnershipRepository.findAllByUserIdAndFolderIsNullOrderByAcquiredAtDesc(user.getId()).stream()
+                    .map(OwnedVoiceAssetResponse::from)
+                    .toList();
+        } else {
+            voices = voiceOwnershipRepository.findAllByUserIdAndFolderIdOrderByAcquiredAtDesc(user.getId(), parentFolderId).stream()
+                    .map(OwnedVoiceAssetResponse::from)
                     .toList();
         }
 
-        return voiceFolderRepository.findAllByOwnerIdAndParentIsNullOrderByCreatedAtAsc(user.getId()).stream()
-                .map(VoiceFolderResponse::from)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public VoiceFolderResponse getFolder(Long folderId, User user) {
-        return VoiceFolderResponse.from(getOwnedFolder(folderId, user.getId()));
+        return VoiceFolderContentsResponse.builder()
+                .totalVoiceCount(calculateTotalVoiceCount(folders, voices))
+                .folders(folders)
+                .voices(voices)
+                .build();
     }
 
     @Transactional
@@ -70,7 +79,7 @@ public class VoiceFolderService {
 
         voiceFolder.updateFolder(folderName, parentFolder);
 
-        return VoiceFolderResponse.from(voiceFolder);
+        return buildFolderResponse(voiceFolder, user.getId());
     }
 
     @Transactional
@@ -158,5 +167,102 @@ public class VoiceFolderService {
         List<VoiceTrainingJob> trainingJobs = voiceTrainingJobRepository.findAllByRequestedFolderIdIn(folderIds);
         trainingJobs.forEach(VoiceTrainingJob::clearRequestedFolder);
         voiceTrainingJobRepository.saveAll(trainingJobs);
+    }
+
+    private List<VoiceFolderResponse> buildFolderResponses(List<VoiceFolder> folders, Long userId) {
+        if (folders.isEmpty()) {
+            return List.of();
+        }
+
+        FolderVoiceCountContext countContext = buildFolderVoiceCountContext(userId);
+
+        return folders.stream()
+                .map(folder -> VoiceFolderResponse.from(
+                        folder,
+                        getTotalVoiceCount(folder.getId(), countContext)
+                ))
+                .toList();
+    }
+
+    private List<VoiceFolderResponse> getChildFolderResponses(Long parentFolderId, Long userId) {
+        if (parentFolderId != null) {
+            getOwnedFolder(parentFolderId, userId);
+            return buildFolderResponses(
+                    voiceFolderRepository.findAllByOwnerIdAndParentIdOrderByCreatedAtAsc(userId, parentFolderId),
+                    userId
+            );
+        }
+
+        return buildFolderResponses(
+                voiceFolderRepository.findAllByOwnerIdAndParentIsNullOrderByCreatedAtAsc(userId),
+                userId
+        );
+    }
+
+    private VoiceFolderResponse buildFolderResponse(VoiceFolder folder, Long userId) {
+        FolderVoiceCountContext countContext = buildFolderVoiceCountContext(userId);
+        return VoiceFolderResponse.from(folder, getTotalVoiceCount(folder.getId(), countContext));
+    }
+
+    private FolderVoiceCountContext buildFolderVoiceCountContext(Long userId) {
+        List<VoiceFolder> allFolders = voiceFolderRepository.findAllByOwnerIdOrderByCreatedAtAsc(userId);
+        List<Long> folderIds = allFolders.stream()
+                .map(VoiceFolder::getId)
+                .toList();
+
+        Map<Long, Long> voiceCounts = getVoiceCounts(userId, folderIds);
+        Map<Long, List<Long>> childFolderIdsByParentId = new HashMap<>();
+
+        for (VoiceFolder voiceFolder : allFolders) {
+            if (voiceFolder.getParent() == null) {
+                continue;
+            }
+
+            childFolderIdsByParentId
+                    .computeIfAbsent(voiceFolder.getParent().getId(), ignored -> new ArrayList<>())
+                    .add(voiceFolder.getId());
+        }
+
+        return new FolderVoiceCountContext(voiceCounts, childFolderIdsByParentId, new HashMap<>());
+    }
+
+    private Map<Long, Long> getVoiceCounts(Long userId, Collection<Long> folderIds) {
+        if (folderIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return voiceOwnershipRepository.countVoicesByUserIdAndFolderIds(userId, folderIds).stream()
+                .collect(Collectors.toMap(
+                        VoiceOwnershipRepository.FolderVoiceCountProjection::getFolderId,
+                        VoiceOwnershipRepository.FolderVoiceCountProjection::getTotalCount
+                ));
+    }
+
+    private long getTotalVoiceCount(Long folderId, FolderVoiceCountContext countContext) {
+        Long cachedCount = countContext.totalVoiceCounts().get(folderId);
+        if (cachedCount != null) {
+            return cachedCount;
+        }
+
+        long totalCount = countContext.directVoiceCounts().getOrDefault(folderId, 0L);
+        for (Long childFolderId : countContext.childFolderIdsByParentId().getOrDefault(folderId, List.of())) {
+            totalCount += getTotalVoiceCount(childFolderId, countContext);
+        }
+
+        countContext.totalVoiceCounts().put(folderId, totalCount);
+        return totalCount;
+    }
+
+    private long calculateTotalVoiceCount(List<VoiceFolderResponse> folders, List<OwnedVoiceAssetResponse> voices) {
+        return folders.stream()
+                .mapToLong(VoiceFolderResponse::voiceCount)
+                .sum() + voices.size();
+    }
+
+    private record FolderVoiceCountContext(
+            Map<Long, Long> directVoiceCounts,
+            Map<Long, List<Long>> childFolderIdsByParentId,
+            Map<Long, Long> totalVoiceCounts
+    ) {
     }
 }

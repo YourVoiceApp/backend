@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 
 public record OwnedVoiceAssetResponse(
         String voiceKey,
-        String externalVoiceId,
         String title,
         Long folderId,
         VoiceOwnership.AcquisitionType acquiredBy,
@@ -16,7 +15,6 @@ public record OwnedVoiceAssetResponse(
     public static OwnedVoiceAssetResponse from(VoiceOwnership voiceOwnership) {
         VoiceAsset voiceAsset = voiceOwnership.getVoiceAsset();
         return new OwnedVoiceAssetResponse(
-                voiceAsset.getExternalVoiceId(),
                 voiceAsset.getExternalVoiceId(),
                 voiceAsset.getTitle(),
                 voiceOwnership.getFolder() != null ? voiceOwnership.getFolder().getId() : null,

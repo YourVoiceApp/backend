@@ -4,6 +4,7 @@ import com.love.yourvoiceback.common.security.CurrentUser;
 import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.dto.request.VoiceFolderCreateRequest;
 import com.love.yourvoiceback.voice.dto.request.VoiceFolderUpdateRequest;
+import com.love.yourvoiceback.voice.dto.response.VoiceFolderContentsResponse;
 import com.love.yourvoiceback.voice.dto.response.VoiceFolderResponse;
 import com.love.yourvoiceback.voice.service.VoiceFolderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,22 +37,13 @@ public class VoiceFolderController {
         return ResponseEntity.ok(voiceFolderService.createFolder(request, user));
     }
 
-    @GetMapping
-    @Operation(summary = "내 음성 폴더 목록을 조회합니다.")
-    public ResponseEntity<List<VoiceFolderResponse>> getFolders(
+    @GetMapping("/contents")
+    @Operation(summary = "특정 폴더 화면에 필요한 하위 폴더와 음성 파일 목록을 함께 조회합니다.")
+    public ResponseEntity<VoiceFolderContentsResponse> getFolderContents(
             @RequestParam(required = false) Long parentId,
             @CurrentUser User user
     ) {
-        return ResponseEntity.ok(voiceFolderService.getFolders(parentId, user));
-    }
-
-    @GetMapping("/{folderId}")
-    @Operation(summary = "내 음성 폴더 정보를 조회합니다.")
-    public ResponseEntity<VoiceFolderResponse> getFolder(
-            @PathVariable Long folderId,
-            @CurrentUser User user
-    ) {
-        return ResponseEntity.ok(voiceFolderService.getFolder(folderId, user));
+        return ResponseEntity.ok(voiceFolderService.getFolderContents(parentId, user));
     }
 
     @PutMapping("/{folderId}")

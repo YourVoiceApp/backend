@@ -9,6 +9,8 @@ import java.util.Optional;
 public interface VoiceFolderRepository extends JpaRepository<VoiceFolder, Long> {
     Optional<VoiceFolder> findByIdAndOwnerId(Long id, Long ownerId);
 
+    List<VoiceFolder> findAllByOwnerIdOrderByCreatedAtAsc(Long ownerId);
+
     List<VoiceFolder> findAllByOwnerIdAndParentIsNullOrderByCreatedAtAsc(Long ownerId);
 
     List<VoiceFolder> findAllByOwnerIdAndParentIdOrderByCreatedAtAsc(Long ownerId, Long parentId);
