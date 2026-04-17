@@ -10,10 +10,9 @@
   - 미분류 음성 조회
   - 음성 폴더 이동
   - 클론 보이스 생성
-- 아직 바로 연동 어려움
-  - TTS API: `ownershipId` 가 프론트에 없음
-  - 생성 오디오 stream/download: TTS 응답과 이어져야 해서 현재 미연결
-  - 음성 삭제: 서버 삭제 API 없음
+  - TTS 생성
+  - 음성 삭제
+- 생성 오디오 stream/download 는 TTS 응답과 이어서 사용 가능
 
 ## 이 화면에서 쓰는 API 묶음
 
@@ -30,6 +29,7 @@
 - `GET /voices/unassigned`
 - `PATCH /voices/folder`
 - `POST /voices/cloned-voice`
+- `DELETE /voices/{ownershipId}`
 - `POST /voices/{ownershipId}/text-to-speech`
 - `GET /voices/generated-audios/{generatedAudioId}/stream`
 - `GET /voices/generated-audios/{generatedAudioId}/download`
@@ -61,6 +61,7 @@ Response:
   ],
   "voices": [
     {
+      "ownershipId": 10,
       "voiceKey": "voice_abc",
       "title": "엄마.안내_01.m4a",
       "folderId": null,
@@ -146,6 +147,7 @@ Response:
 ```json
 [
   {
+    "ownershipId": 10,
     "voiceKey": "voice_abc",
     "title": "엄마.안내_01.m4a",
     "folderId": 1,
@@ -170,6 +172,7 @@ Response:
 ```json
 [
   {
+    "ownershipId": 12,
     "voiceKey": "voice_xyz",
     "title": "새녹음_clip.aac",
     "folderId": null,
@@ -206,6 +209,7 @@ Response:
 ```json
 [
   {
+    "ownershipId": 10,
     "voiceKey": "voice_abc",
     "title": "엄마.안내_01.m4a",
     "folderId": 1,
@@ -271,11 +275,10 @@ Request:
 }
 ```
 
-현재 blocker:
+현재 기준:
 
 - 경로 변수는 `voiceKey` 가 아니라 `ownershipId`
-- 현재 음성 목록 응답에는 `ownershipId` 가 없음
-- 그래서 프론트가 지금 응답만으로는 이 API를 직접 호출하기 어려움
+- 이제 목록 응답에도 `ownershipId` 가 포함되므로 프론트에서 바로 호출 가능합니다
 
 ## 10. 생성 오디오 재생/다운로드
 
@@ -291,19 +294,20 @@ Request:
 
 현재 상태:
 
-- 위 두 API 자체는 존재
-- 하지만 `generatedAudioId` 는 TTS 응답을 통해 받아야 하므로, TTS 미연결 상태에서는 같이 미연결
+- 위 두 API 모두 사용 가능
+- `generatedAudioId` 는 TTS 응답에서 받아 이어서 호출하면 됩니다
 
 ## 11. 음성 삭제
 
-현재 상태:
+- `DELETE /voices/{ownershipId}`
 
-- 서버 기준 음성 삭제 API 없음
-- 프론트에서 로그인 상태 삭제 기능은 완전한 서버 연동 불가
+Response:
+
+- `204 No Content`
 
 ## 프론트 구현 메모
 
 - 폴더 화면은 `GET /voice-folders/contents` 중심으로 구성하는 게 가장 편함
 - 미분류 전용 영역은 `GET /voices/unassigned`
-- TTS 버튼은 백엔드가 `ownershipId` 를 내려주기 전까지 비활성 또는 데모 처리 권장
-- 삭제 버튼은 서버 API 추가 전까지 로컬 상태 변경만으로 처리하면 실제 데이터와 불일치 가능
+- TTS 버튼은 목록 응답의 `ownershipId` 를 사용해 바로 연결 가능
+- 삭제 버튼도 `DELETE /voices/{ownershipId}` 로 실제 서버 연동 가능

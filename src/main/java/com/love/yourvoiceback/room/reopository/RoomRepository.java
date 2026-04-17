@@ -10,4 +10,8 @@ public interface RoomRepository extends JpaRepository<VoiceRoom,Long>{
     List<VoiceRoom> findAllByOwnerIdOrderByCreatedAtDesc(Long ownerId);
 
     Optional<VoiceRoom> findByIdAndOwnerId(Long id, Long ownerId);
+
+    Optional<VoiceRoom> findByInviteCode(Integer inviteCode);
+
+    boolean existsByInviteCode(Integer inviteCode);
 }

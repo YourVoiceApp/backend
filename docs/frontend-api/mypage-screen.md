@@ -10,10 +10,10 @@
   - 비밀번호 변경
   - 연결된 소셜 계정 조회
   - 회원 탈퇴
+  - 음성 카드 TTS 액션
+  - 음성 삭제 액션
 - 부분 연동 또는 추가 확인 필요
   - 보유 음성 통계 카운트는 현재 여러 API 조합 필요
-  - 음성 카드의 TTS 액션은 `ownershipId` blocker 존재
-  - 음성 삭제 액션은 서버 API 없음
 
 모든 API에 Bearer 토큰 필요
 
@@ -28,6 +28,8 @@
   - `GET /voices`
   - `GET /voices/unassigned`
   - `GET /voice-folders/contents`
+  - `POST /voices/{ownershipId}/text-to-speech`
+  - `DELETE /voices/{ownershipId}`
 
 ## 1. 내 정보 조회
 
@@ -147,16 +149,16 @@ Response:
 ### TTS
 
 - API는 존재: `POST /voices/{ownershipId}/text-to-speech`
-- 하지만 목록 응답에 `ownershipId` 없음
-- 따라서 마이페이지 카드에서 바로 TTS 연결은 현재 어려움
+- 이제 목록 응답에도 `ownershipId` 가 포함되어 바로 연결 가능
 
 ### 삭제
 
-- 서버 삭제 API 없음
-- 로그인 상태 기준 진짜 삭제는 아직 구현 불가
+- API 존재: `DELETE /voices/{ownershipId}`
+- 로그인 상태 기준 실제 삭제 요청 가능
 
 ## 프론트 구현 메모
 
 - 프로필 영역은 `GET /me` 하나로 대부분 해결 가능
 - 음성 카드 영역은 현재 완전한 전용 API가 없어서 일부는 데모 또는 계산 로직 필요
+- 음성 카드 액션은 `GET /voices` 또는 `GET /voice-folders/contents` 응답의 `ownershipId` 를 사용하면 됩니다
 - 실제 서비스 연결 기준으로는 `마이페이지` 와 `음성` 탭이 같은 음성 데이터 소스를 공유하는 편이 자연스러움

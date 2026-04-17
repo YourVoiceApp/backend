@@ -11,6 +11,7 @@ public record RoomVoiceShareResponse(
         String voiceKey,
         String externalVoiceId,
         String voiceTitle,
+        String ownerName,
         AccessScope accessScope,
         LocalDateTime sharedAt
 ) {
@@ -21,6 +22,7 @@ public record RoomVoiceShareResponse(
                 roomVoiceShare.getVoiceAsset().getExternalVoiceId(),
                 roomVoiceShare.getVoiceAsset().getExternalVoiceId(),
                 roomVoiceShare.getVoiceAsset().getTitle(),
+                roomVoiceShare.getVoiceAsset().getCreator().getNickName(),
                 roomVoiceShare.getAccessScope(),
                 roomVoiceShare.getSharedAt()
         );

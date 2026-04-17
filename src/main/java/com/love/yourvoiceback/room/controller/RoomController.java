@@ -2,7 +2,9 @@ package com.love.yourvoiceback.room.controller;
 
 import com.love.yourvoiceback.common.security.CurrentUser;
 import com.love.yourvoiceback.room.controller.dto.request.RoomCreateRequest;
+import com.love.yourvoiceback.room.controller.dto.request.RoomJoinRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomUpdateRequest;
+import com.love.yourvoiceback.room.controller.dto.response.RoomMemberResponse;
 import com.love.yourvoiceback.room.controller.dto.response.RoomResponse;
 import com.love.yourvoiceback.room.service.RoomService;
 import com.love.yourvoiceback.user.User;
@@ -39,19 +41,37 @@ public class RoomController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/join")
+    @Operation(summary = "초대 코드로 방에 입장합니다.")
+    public ResponseEntity<RoomResponse> joinRoom(
+            @Valid @RequestBody RoomJoinRequest request,
+            @CurrentUser User user
+    ) {
+        return ResponseEntity.ok(roomService.joinRoom(request, user));
+    }
+
     @GetMapping
-    @Operation(summary = "내가 만든 방 목록을 조회합니다.")
+    @Operation(summary = "현재 로그인한 사용자가 참여 중인 방 목록을 조회합니다.")
     public ResponseEntity<List<RoomResponse>> getMyRooms(@CurrentUser User user) {
         return ResponseEntity.ok(roomService.getMyRooms(user));
     }
 
     @GetMapping("/{roomId}")
-    @Operation(summary = "내가 만든 방 정보를 조회합니다.")
+    @Operation(summary = "현재 로그인한 사용자가 참여 중인 방 정보를 조회합니다.")
     public ResponseEntity<RoomResponse> getMyRoom(
             @PathVariable Long roomId,
             @CurrentUser User user
     ) {
         return ResponseEntity.ok(roomService.getMyRoom(roomId, user));
+    }
+
+    @GetMapping("/{roomId}/members")
+    @Operation(summary = "방에 참여 중인 멤버 목록을 조회합니다.")
+    public ResponseEntity<List<RoomMemberResponse>> getRoomMembers(
+            @PathVariable Long roomId,
+            @CurrentUser User user
+    ) {
+        return ResponseEntity.ok(roomService.getRoomMembers(roomId, user));
     }
 
     @PutMapping("/{roomId}")

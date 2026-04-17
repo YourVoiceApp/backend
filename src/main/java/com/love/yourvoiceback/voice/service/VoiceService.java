@@ -166,6 +166,13 @@ public class VoiceService {
                 .build();
     }
 
+    @Transactional
+    public void deleteOwnedVoice(User user, Long ownershipId) {
+        VoiceOwnership voiceOwnership = voiceOwnershipRepository.findByIdAndUserId(ownershipId, user.getId())
+                .orElseThrow(() -> ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND));
+        voiceOwnershipRepository.delete(voiceOwnership);
+    }
+
     @Transactional(readOnly = true)
     public GeneratedAudioFileResponse getGeneratedAudioForStream(User user, Long generatedAudioId) {
         return buildGeneratedAudioFileResponse(user, generatedAudioId);

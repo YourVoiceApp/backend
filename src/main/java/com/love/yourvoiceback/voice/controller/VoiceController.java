@@ -18,6 +18,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -81,6 +82,16 @@ public class VoiceController {
             @CurrentUser User user
     ) {
         return ResponseEntity.ok(voiceService.createSpeech(user, ownershipId, request));
+    }
+
+    @DeleteMapping("/{ownershipId}")
+    @Operation(summary = "현재 로그인한 사용자의 음성 소유 항목을 삭제합니다.")
+    public ResponseEntity<Void> deleteOwnedVoice(
+            @PathVariable Long ownershipId,
+            @CurrentUser User user
+    ) {
+        voiceService.deleteOwnedVoice(user, ownershipId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping(

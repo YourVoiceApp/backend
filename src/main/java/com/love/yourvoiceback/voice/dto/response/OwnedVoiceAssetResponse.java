@@ -6,6 +6,7 @@ import com.love.yourvoiceback.voice.domain.VoiceOwnership;
 import java.time.LocalDateTime;
 
 public record OwnedVoiceAssetResponse(
+        Long ownershipId,
         String voiceKey,
         String title,
         Long folderId,
@@ -15,6 +16,7 @@ public record OwnedVoiceAssetResponse(
     public static OwnedVoiceAssetResponse from(VoiceOwnership voiceOwnership) {
         VoiceAsset voiceAsset = voiceOwnership.getVoiceAsset();
         return new OwnedVoiceAssetResponse(
+                voiceOwnership.getId(),
                 voiceAsset.getExternalVoiceId(),
                 voiceAsset.getTitle(),
                 voiceOwnership.getFolder() != null ? voiceOwnership.getFolder().getId() : null,

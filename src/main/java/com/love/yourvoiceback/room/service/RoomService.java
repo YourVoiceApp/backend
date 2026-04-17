@@ -3,11 +3,15 @@ package com.love.yourvoiceback.room.service;
 import com.love.yourvoiceback.common.exception.ApiException;
 import com.love.yourvoiceback.common.exception.ErrorCode;
 import com.love.yourvoiceback.room.controller.dto.request.RoomCreateRequest;
+import com.love.yourvoiceback.room.controller.dto.request.RoomJoinRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomUpdateRequest;
+import com.love.yourvoiceback.room.controller.dto.response.RoomMemberResponse;
 import com.love.yourvoiceback.room.controller.dto.response.RoomResponse;
 import com.love.yourvoiceback.room.domain.RoomMembership;
 import com.love.yourvoiceback.room.domain.VoiceRoom;
 import com.love.yourvoiceback.room.enums.JoinPolicy;
+import com.love.yourvoiceback.room.enums.MembershipRole;
+import com.love.yourvoiceback.room.enums.MembershipStatus;
 import com.love.yourvoiceback.room.reopository.RoomMembershipRepository;
 import com.love.yourvoiceback.room.reopository.RoomRepository;
 import com.love.yourvoiceback.room.reopository.RoomVoiceShareRepository;
@@ -50,16 +54,43 @@ public class RoomService {
         return RoomResponse.from(savedVoiceRoom);
     }
 
+    @Transactional
+    public RoomResponse joinRoom(RoomJoinRequest request, User user) {
+        VoiceRoom room = roomRepository.findByInviteCode(parseInviteCode(request.inviteCode()))
+                .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
+
+        validateJoinRequest(room, request.password());
+
+        RoomMembership existingMembership = roomMembershipRepository.findByRoomIdAndUserId(room.getId(), user.getId())
+                .orElse(null);
+        if (existingMembership != null) {
+            return RoomResponse.from(rejoinRoom(existingMembership, room));
+        }
+
+        ensureRoomHasCapacity(room.getId(), room.getMaxParticipants());
+        roomMembershipRepository.save(RoomMembership.join(user, room));
+        return RoomResponse.from(room);
+    }
+
     @Transactional(readOnly = true)
     public List<RoomResponse> getMyRooms(User user) {
-        return roomRepository.findAllByOwnerIdOrderByCreatedAtDesc(user.getId()).stream()
+        return roomMembershipRepository.findAllByUserIdAndStatusOrderByJoinedAtDesc(user.getId(), MembershipStatus.ACTIVE).stream()
+                .map(RoomMembership::getRoom)
                 .map(RoomResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public RoomResponse getMyRoom(Long roomId, User user) {
-        return RoomResponse.from(getOwnedRoom(roomId, user.getId()));
+        return RoomResponse.from(getAccessibleRoom(roomId, user.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoomMemberResponse> getRoomMembers(Long roomId, User user) {
+        getAccessibleRoom(roomId, user.getId());
+        return roomMembershipRepository.findAllByRoomIdAndStatusOrderByJoinedAtAsc(roomId, MembershipStatus.ACTIVE).stream()
+                .map(RoomMemberResponse::from)
+                .toList();
     }
 
     @Transactional
@@ -142,7 +173,62 @@ public class RoomService {
                 .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
     }
 
+    private VoiceRoom getAccessibleRoom(Long roomId, Long userId) {
+        if (!roomMembershipRepository.existsByRoomIdAndUserIdAndStatus(roomId, userId, MembershipStatus.ACTIVE)) {
+            throw ApiException.error(ErrorCode.ROOM_NOT_FOUND);
+        }
+        return roomRepository.findById(roomId)
+                .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
+    }
+
     private Integer generateInviteCode() {
-        return 100000 + RANDOM.nextInt(900000);
+        Integer inviteCode;
+        do {
+            inviteCode = 100000 + RANDOM.nextInt(900000);
+        } while (roomRepository.existsByInviteCode(inviteCode));
+        return inviteCode;
+    }
+
+    private int parseInviteCode(String inviteCode) {
+        try {
+            return Integer.parseInt(inviteCode);
+        } catch (NumberFormatException exception) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Invite code must be a 6-digit number");
+        }
+    }
+
+    private void validateJoinRequest(VoiceRoom room, String password) {
+        if (room.getJoinPolicy() == JoinPolicy.INVITE_CODE_WITH_PASSWORD) {
+            if (password == null || password.isBlank()) {
+                throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is required for password-protected rooms");
+            }
+            if (!passwordEncoder.matches(password, room.getPasswordHash())) {
+                throw ApiException.error(ErrorCode.INVALID_REQUEST, "Room password is incorrect");
+            }
+        }
+    }
+
+    private VoiceRoom rejoinRoom(RoomMembership membership, VoiceRoom room) {
+        if (membership.getStatus() == MembershipStatus.BLOCKED) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Blocked users cannot join this room");
+        }
+        if (membership.getStatus() == MembershipStatus.ACTIVE) {
+            return room;
+        }
+
+        ensureRoomHasCapacity(room.getId(), room.getMaxParticipants());
+        membership.setStatus(MembershipStatus.ACTIVE);
+        if (membership.getRole() == null) {
+            membership.setRole(MembershipRole.MEMBER);
+        }
+        membership.setJoinedAt(LocalDateTime.now());
+        return room;
+    }
+
+    private void ensureRoomHasCapacity(Long roomId, Long maxParticipants) {
+        long activeMembers = roomMembershipRepository.countByRoomIdAndStatus(roomId, MembershipStatus.ACTIVE);
+        if (activeMembers >= maxParticipants) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Room is full");
+        }
     }
 }

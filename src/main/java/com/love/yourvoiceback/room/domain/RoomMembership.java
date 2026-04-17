@@ -58,4 +58,13 @@ public class RoomMembership {
                 .status(MembershipStatus.ACTIVE)
                 .build();
     }
+
+    public static RoomMembership join(User user, VoiceRoom room) {
+        return RoomMembership.builder()
+                .room(room)
+                .user(user)
+                .role(MembershipRole.MEMBER)
+                .status(MembershipStatus.ACTIVE)
+                .build();
+    }
 }
