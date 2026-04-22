@@ -43,16 +43,25 @@ public class SpeechSynthesisRequest {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String text;
 
+    @Column(length = 64)
+    private String requestHash;
+
 
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    public static SpeechSynthesisRequest createListenRequest(User requestedBy, VoiceAsset voiceAsset, String text) {
+    public static SpeechSynthesisRequest createListenRequest(
+            User requestedBy,
+            VoiceAsset voiceAsset,
+            String text,
+            String requestHash
+    ) {
         return SpeechSynthesisRequest.builder()
                 .requestedBy(requestedBy)
                 .voiceAsset(voiceAsset)
                 .text(text)
+                .requestHash(requestHash)
                 .build();
     }
 }

@@ -52,3 +52,16 @@ supertone:
   api:
     base-url: ${SUPERTONE_API_BASE_URL:https://supertoneapi.com}
     key: ${SUPERTONE_API_KEY:}
+
+app:
+  generated-audio:
+    storage-path: ${APP_GENERATED_AUDIO_STORAGE_PATH:storage/generated-audios}
+  voice-source:
+    storage-path: ${APP_VOICE_SOURCE_STORAGE_PATH:storage/voice-sources}
+  audio-storage:
+    mode: ${APP_AUDIO_STORAGE_MODE:local}
+    s3:
+      bucket: ${APP_AUDIO_STORAGE_S3_BUCKET:}
+      region: ${APP_AUDIO_STORAGE_S3_REGION:ap-northeast-2}
+      generated-prefix: ${APP_AUDIO_STORAGE_S3_GENERATED_PREFIX:voices/generated}
+      source-prefix: ${APP_AUDIO_STORAGE_S3_SOURCE_PREFIX:voices/source}

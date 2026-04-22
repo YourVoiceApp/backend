@@ -37,6 +37,12 @@ public class GeneratedAudio {
     @Column(nullable = false, length = 500)
     private String audioUrl;
 
+    @Column(length = 64)
+    private String requestHash;
+
+    @Column(length = 100)
+    private String audioContentType;
+
     private Long durationMs;
 
     private LocalDateTime expiresAt;
@@ -45,14 +51,23 @@ public class GeneratedAudio {
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    public static GeneratedAudio create(SpeechSynthesisRequest request, String audioUrl) {
+    public static GeneratedAudio create(
+            SpeechSynthesisRequest request,
+            String audioUrl,
+            String requestHash,
+            String audioContentType
+    ) {
         return GeneratedAudio.builder()
                 .request(request)
                 .audioUrl(audioUrl)
+                .requestHash(requestHash)
+                .audioContentType(audioContentType)
                 .build();
     }
 
-    public void updateAudioUrl(String audioUrl) {
+    public void updateAudioReference(String audioUrl, String requestHash, String audioContentType) {
         this.audioUrl = audioUrl;
+        this.requestHash = requestHash;
+        this.audioContentType = audioContentType;
     }
 }

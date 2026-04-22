@@ -10,6 +10,8 @@ import com.love.yourvoiceback.inference.GeneratedAudioRepository;
 import com.love.yourvoiceback.inference.GeneratedAudioStorage;
 import com.love.yourvoiceback.inference.SpeechSynthesisRequest;
 import com.love.yourvoiceback.inference.SpeechSynthesisRequestRepository;
+import com.love.yourvoiceback.training.VoiceTrainingSource;
+import com.love.yourvoiceback.training.VoiceTrainingSourceRepository;
 import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.domain.VoiceAsset;
 import com.love.yourvoiceback.voice.domain.VoiceFolder;
@@ -29,11 +31,16 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -52,6 +59,7 @@ public class VoiceService {
     private final SpeechSynthesisRequestRepository speechSynthesisRequestRepository;
     private final GeneratedAudioRepository generatedAudioRepository;
     private final GeneratedAudioStorage generatedAudioStorage;
+    private final VoiceTrainingSourceRepository voiceTrainingSourceRepository;
 
     @Transactional(readOnly = true)
     public List<OwnedVoiceAssetResponse> getOwnedVoices(User user, Long folderId) {
@@ -110,6 +118,17 @@ public class VoiceService {
 
         String trimmedName = name.trim();
         String trimmedDescription = StringUtils.hasText(description) ? description.trim() : null;
+        GeneratedAudioStorage.StoredAudioObject sourceAudio = generatedAudioStorage.saveVoiceSourceAudio(user.getId(), file);
+        VoiceTrainingSource voiceTrainingSource = voiceTrainingSourceRepository.save(
+                VoiceTrainingSource.builder()
+                        .uploadedBy(user)
+                        .storagePath(sourceAudio.storagePath())
+                        .fileName(resolveOriginalFilename(file))
+                        .fileSize(sourceAudio.fileSize())
+                        .checksum(sourceAudio.checksum())
+                        .contentType(sourceAudio.contentType())
+                        .build()
+        );
 
         SupertoneCreateClonedVoiceResponse response = supertoneVoiceClient.createClonedVoice(
                 file,
@@ -125,6 +144,7 @@ public class VoiceService {
         VoiceAsset savedVoiceAsset = voiceAssetRepository.save(voiceAsset);
 
         VoiceOwnership voiceOwnership = VoiceOwnership.createCreatedOwnership(user, savedVoiceAsset);
+        voiceTrainingSource.attachToVoiceAsset(savedVoiceAsset);
 
         voiceOwnershipRepository.save(voiceOwnership);
 
@@ -136,12 +156,36 @@ public class VoiceService {
         VoiceOwnership voiceOwnership = voiceOwnershipRepository.findByIdAndUserId(ownershipId, user.getId())
                 .orElseThrow(() -> ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND));
 
+        String requestHash = buildSpeechRequestHash(voiceOwnership.getVoiceAsset(), request.getText());
         SpeechSynthesisRequest speechSynthesisRequest = SpeechSynthesisRequest.createListenRequest(
                 user,
                 voiceOwnership.getVoiceAsset(),
-                request.getText()
+                request.getText(),
+                requestHash
         );
         speechSynthesisRequestRepository.save(speechSynthesisRequest);
+
+        Optional<GeneratedAudio> cachedAudio = generatedAudioRepository
+                .findFirstByRequestHashAndRequestVoiceAssetExternalVoiceIdOrderByIdDesc(
+                        requestHash,
+                        voiceOwnership.getVoiceAsset().getExternalVoiceId()
+                );
+        if (cachedAudio.isPresent()) {
+            GeneratedAudio reusedAudio = generatedAudioRepository.save(
+                    GeneratedAudio.create(
+                            speechSynthesisRequest,
+                            cachedAudio.get().getAudioUrl(),
+                            requestHash,
+                            cachedAudio.get().getAudioContentType()
+                    )
+            );
+            return VoiceTextToSpeechResponse.builder()
+                    .speechRequestId(speechSynthesisRequest.getId())
+                    .generatedAudioId(reusedAudio.getId())
+                    .streamUrl(buildGeneratedAudioStreamUrl(reusedAudio.getId()))
+                    .downloadUrl(buildGeneratedAudioDownloadUrl(reusedAudio.getId()))
+                    .build();
+        }
 
         SupertoneTextToSpeechResponse response = supertoneVoiceClient.createSpeech(
                 voiceOwnership.getVoiceAsset().getExternalVoiceId(),
@@ -149,14 +193,14 @@ public class VoiceService {
         );
 
         GeneratedAudio generatedAudio = generatedAudioRepository.save(
-                GeneratedAudio.create(speechSynthesisRequest, "pending")
+                GeneratedAudio.create(speechSynthesisRequest, "pending", requestHash, response.contentType().toString())
         );
-        String storedFilename = generatedAudioStorage.save(
-                generatedAudio.getId(),
+        String storedFilename = generatedAudioStorage.saveGeneratedAudio(
+                requestHash,
                 response.body(),
                 response.contentType()
         );
-        generatedAudio.updateAudioUrl(storedFilename);
+        generatedAudio.updateAudioReference(storedFilename, requestHash, response.contentType().toString());
 
         return VoiceTextToSpeechResponse.builder()
                 .speechRequestId(speechSynthesisRequest.getId())
@@ -240,7 +284,9 @@ public class VoiceService {
         }
 
         String storedFilename = generatedAudio.getAudioUrl();
-        MediaType contentType = generatedAudioStorage.resolveContentType(storedFilename);
+        MediaType contentType = StringUtils.hasText(generatedAudio.getAudioContentType())
+                ? MediaType.parseMediaType(generatedAudio.getAudioContentType())
+                : generatedAudioStorage.resolveContentType(storedFilename);
         byte[] body = generatedAudioStorage.read(storedFilename);
         String downloadFilename = "voice-" + generatedAudioId + (
                 MediaType.valueOf("audio/mpeg").includes(contentType) ? ".mp3" : ".wav"
@@ -255,6 +301,35 @@ public class VoiceService {
 
     private String buildGeneratedAudioDownloadUrl(Long generatedAudioId) {
         return "/voices/generated-audios/" + generatedAudioId + "/download";
+    }
+
+    private String resolveOriginalFilename(MultipartFile file) {
+        return StringUtils.hasText(file.getOriginalFilename())
+                ? file.getOriginalFilename().trim()
+                : "voice-source";
+    }
+
+    private String buildSpeechRequestHash(VoiceAsset voiceAsset, String text) {
+        String normalizedText = normalizeText(text);
+        String payload = String.join(
+                "|",
+                voiceAsset.getExternalVoiceId(),
+                DEFAULT_TTS_LANGUAGE,
+                DEFAULT_TTS_MODEL,
+                DEFAULT_TTS_OUTPUT_FORMAT,
+                normalizedText
+        );
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(payload.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            throw ApiException.error(ErrorCode.INTERNAL_SERVER_ERROR, "SHA-256 is not available");
+        }
+    }
+
+    private String normalizeText(String text) {
+        return text == null ? "" : text.trim().replaceAll("\\s+", " ");
     }
 
     public record GeneratedAudioFileResponse(byte[] body, MediaType contentType, String filename) {
