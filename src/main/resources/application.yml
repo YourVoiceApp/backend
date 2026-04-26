@@ -2,9 +2,6 @@
 # 로컬: spring.profiles.default=local + application-local.yml 이 아래 설정을 덮어씁니다.
 
 spring:
-  profiles:
-    default: local
-
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
