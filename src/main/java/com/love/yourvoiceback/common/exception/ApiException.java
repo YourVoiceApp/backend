@@ -21,6 +21,10 @@ public class ApiException extends RuntimeException {
         return new ApiException(errorCode, message, null);
     }
 
+    public static ApiException error(ErrorCode errorCode, String message, Throwable cause) {
+        return new ApiException(errorCode, message, cause);
+    }
+
     public ErrorCode getErrorCode() {
         return errorCode;
     }

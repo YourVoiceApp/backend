@@ -42,6 +42,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -118,7 +119,21 @@ public class VoiceService {
 
         String trimmedName = name.trim();
         String trimmedDescription = StringUtils.hasText(description) ? description.trim() : null;
-        GeneratedAudioStorage.StoredAudioObject sourceAudio = generatedAudioStorage.saveVoiceSourceAudio(user.getId(), file);
+
+        // TODO(보류): S3 / 로컬 디스크에 학습용 원본 음성 저장 — 나중에 saveVoiceSourceAudio 연동
+        // GeneratedAudioStorage.StoredAudioObject sourceAudio =
+        //         generatedAudioStorage.saveVoiceSourceAudio(user.getId(), file);
+        String deferredStoragePath = "deferred/" + user.getId() + "/" + UUID.randomUUID();
+        String contentType = StringUtils.hasText(file.getContentType())
+                ? file.getContentType()
+                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        GeneratedAudioStorage.StoredAudioObject sourceAudio = new GeneratedAudioStorage.StoredAudioObject(
+                deferredStoragePath,
+                contentType,
+                file.getSize(),
+                null
+        );
+
         VoiceTrainingSource voiceTrainingSource = voiceTrainingSourceRepository.save(
                 VoiceTrainingSource.builder()
                         .uploadedBy(user)

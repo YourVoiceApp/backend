@@ -2,6 +2,8 @@ package com.love.yourvoiceback.inference;
 
 import com.love.yourvoiceback.common.exception.ApiException;
 import com.love.yourvoiceback.common.exception.ErrorCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -26,6 +28,8 @@ import java.util.UUID;
 
 @Component
 public class GeneratedAudioStorage {
+
+    private static final Logger log = LoggerFactory.getLogger(GeneratedAudioStorage.class);
 
     private final StorageMode storageMode;
     private final Path generatedAudioStorageRoot;
@@ -96,15 +100,27 @@ public class GeneratedAudioStorage {
             return new StoredAudioObject(objectKey, contentType, file.getSize(), checksum);
         }
 
+        Path userDirectory = voiceSourceStorageRoot.resolve(String.valueOf(userId)).normalize();
+        Path target = userDirectory.resolve(objectName).normalize();
         try {
-            Path userDirectory = voiceSourceStorageRoot.resolve(String.valueOf(userId)).normalize();
             Files.createDirectories(userDirectory);
-            Path target = userDirectory.resolve(objectName).normalize();
             Files.write(target, body);
             String location = String.valueOf(userId) + "/" + objectName;
             return new StoredAudioObject(location, contentType, file.getSize(), checksum);
         } catch (IOException ex) {
-            throw ApiException.error(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to store voice source audio");
+            log.error(
+                    "Failed to store voice source: mode={}, root={}, target={}, message={}",
+                    storageMode,
+                    voiceSourceStorageRoot,
+                    target,
+                    ex.getMessage(),
+                    ex
+            );
+            throw ApiException.error(
+                    ErrorCode.INTERNAL_SERVER_ERROR,
+                    "Failed to store voice source audio: " + ex.getMessage(),
+                    ex
+            );
         }
     }
 

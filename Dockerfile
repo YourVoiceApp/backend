@@ -20,6 +20,10 @@ RUN f="$(find /app/libs-tmp -name '*.jar' ! -name '*-plain.jar' | head -n1)" && 
     test -n "$f" && mv "$f" /app/app.jar && rm -rf /app/libs-tmp && \
     chown spring:spring /app/app.jar
 
+# 로컬 스토리지 기본 경로(storage/voice-sources 등) — spring 사용자가 쓸 수 있어야 함
+RUN mkdir -p /app/storage/voice-sources /app/storage/generated-audios && \
+    chown -R spring:spring /app/storage
+
 USER spring:spring
 
 EXPOSE 9090
