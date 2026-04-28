@@ -51,6 +51,9 @@ supertone:
     key: ${SUPERTONE_API_KEY:}
 
 app:
+  # 로컬은 application-local.yml 에서 true. 배포 서버에서 테스트 가입이 필요하면 APP_TEST_AUTH_ENABLED=true
+  test-auth:
+    enabled: ${APP_TEST_AUTH_ENABLED:false}
   generated-audio:
     storage-path: ${APP_GENERATED_AUDIO_STORAGE_PATH:storage/generated-audios}
   voice-source:

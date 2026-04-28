@@ -182,7 +182,6 @@ Response:
 프론트는 아직 접근 범위 수정 UI를 붙이지 않았지만, 향후 쉽게 붙일 수 있도록 아래 enum 유지가 필요합니다.
 
 - `LISTEN_ONLY`
-- `SYNTHESIS_ALLOWED`
 - `DOWNLOAD_ALLOWED`
 
 ## P2. 마켓 기능 확장 시 필요한 항목

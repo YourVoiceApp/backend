@@ -36,6 +36,8 @@ supertone:
     key: ${SUPERTONE_API_KEY:558145023bd12873c9cd03f85cd3fb6b}
 
 app:
+  test-auth:
+    enabled: true
   generated-audio:
     storage-path: ${APP_GENERATED_AUDIO_STORAGE_PATH:storage/generated-audios}
   voice-source:

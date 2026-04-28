@@ -46,7 +46,6 @@
 ### `accessScope`
 
 - `LISTEN_ONLY`
-- `SYNTHESIS_ALLOWED`
 - `DOWNLOAD_ALLOWED`
 
 ## 1. 참여 중인 방 목록 조회
