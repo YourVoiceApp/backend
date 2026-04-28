@@ -43,7 +43,7 @@ public class NotificationPreference {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private NotificationMessage.NotificationType notificationType;
+    private NotificationType notificationType;
 
     @Column(nullable = false)
     private boolean emailEnabled;
