@@ -37,6 +37,7 @@ jobs:
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.0
+        # Repository secrets: SUPERTONE_API_KEY (Supertone 대시보드 키)
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
@@ -68,5 +69,6 @@ jobs:
               -e EMAIL_VERIFICATION_EXPIRATION_SECONDS="${{ secrets.EMAIL_VERIFICATION_EXPIRATION_SECONDS }}" \
               -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
               -e JWT_SECRET_BASE64="${{ secrets.JWT_SECRET_BASE64 }}" \
+              -e SUPERTONE_API_KEY="${{ secrets.SUPERTONE_API_KEY }}" \
               "$IMAGE"
             docker image prune -f
