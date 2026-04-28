@@ -10,7 +10,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # 배포/ Docker: 테이블 자동 생성·변경. create-drop 은 종료 시 스키마 삭제·빈 DB에서 드롭 단계 에러가 잦음.
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     show-sql: false
 
   mail:
