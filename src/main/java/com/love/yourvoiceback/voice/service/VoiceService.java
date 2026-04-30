@@ -16,6 +16,7 @@ import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.domain.VoiceAsset;
 import com.love.yourvoiceback.voice.domain.VoiceFolder;
 import com.love.yourvoiceback.voice.domain.VoiceOwnership;
+import com.love.yourvoiceback.voice.dto.request.RenameOwnedVoiceRequest;
 import com.love.yourvoiceback.voice.dto.request.VoiceOwnershipFolderUpdateRequest;
 import com.love.yourvoiceback.voice.dto.request.VoiceTextToSpeechRequest;
 import com.love.yourvoiceback.voice.dto.response.CreateClonedVoiceAssetResponse;
@@ -29,6 +30,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
@@ -115,9 +118,9 @@ public class VoiceService {
             String name,
             String description
     ) {
-        validateCreateClonedVoiceRequest(file, name);
+        validateCreateClonedVoiceFile(file);
 
-        String trimmedName = name.trim();
+        String trimmedName = requireValidVoiceTitle(name);
         String trimmedDescription = StringUtils.hasText(description) ? description.trim() : null;
 
         // TODO(보류): S3 / 로컬 디스크에 학습용 원본 음성 저장 — 나중에 saveVoiceSourceAudio 연동
@@ -232,6 +235,24 @@ public class VoiceService {
         voiceOwnershipRepository.delete(voiceOwnership);
     }
 
+    @Transactional
+    public OwnedVoiceAssetResponse renameOwnedVoice(User user, Long ownershipId, RenameOwnedVoiceRequest request) {
+        VoiceOwnership voiceOwnership = voiceOwnershipRepository.findByIdAndUserId(ownershipId, user.getId())
+                .orElseThrow(() -> ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND));
+
+        if (voiceOwnership.getAcquiredBy() != VoiceOwnership.AcquisitionType.CREATED) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Only voices you created can be renamed");
+        }
+
+        String trimmedName = requireValidVoiceTitle(request.getName());
+
+        VoiceAsset voiceAsset = voiceOwnership.getVoiceAsset();
+        voiceAsset.setTitle(trimmedName);
+        voiceAsset.setUpdatedAt(LocalDateTime.now());
+
+        return OwnedVoiceAssetResponse.from(voiceOwnership);
+    }
+
     @Transactional(readOnly = true)
     public GeneratedAudioFileResponse getGeneratedAudioForStream(User user, Long generatedAudioId) {
         return buildGeneratedAudioFileResponse(user, generatedAudioId);
@@ -242,15 +263,9 @@ public class VoiceService {
         return buildGeneratedAudioFileResponse(user, generatedAudioId);
     }
 
-    private void validateCreateClonedVoiceRequest(MultipartFile file, String name) {
+    private void validateCreateClonedVoiceFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw ApiException.error(ErrorCode.INVALID_REQUEST, "Audio file is required");
-        }
-        if (!StringUtils.hasText(name)) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Voice name is required");
-        }
-        if (name.trim().length() > 100) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Voice name must be 100 characters or fewer");
         }
         if (file.getSize() > MAX_FILE_SIZE_BYTES) {
             throw ApiException.error(ErrorCode.SUPERTONE_FILE_TOO_LARGE);
@@ -265,6 +280,17 @@ public class VoiceService {
         if (!(lowerCaseFileName.endsWith(".wav") || lowerCaseFileName.endsWith(".mp3"))) {
             throw ApiException.error(ErrorCode.SUPERTONE_UNSUPPORTED_MEDIA_TYPE);
         }
+    }
+
+    private String requireValidVoiceTitle(String rawName) {
+        if (!StringUtils.hasText(rawName)) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Voice name is required");
+        }
+        String trimmed = rawName.trim();
+        if (trimmed.length() > 100) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Voice name must be 100 characters or fewer");
+        }
+        return trimmed;
     }
 
     private void validateOwnedFolder(Long folderId, Long userId) {

@@ -2,6 +2,7 @@ package com.love.yourvoiceback.voice.controller;
 
 import com.love.yourvoiceback.common.security.CurrentUser;
 import com.love.yourvoiceback.user.User;
+import com.love.yourvoiceback.voice.dto.request.RenameOwnedVoiceRequest;
 import com.love.yourvoiceback.voice.dto.request.VoiceOwnershipFolderUpdateRequest;
 import com.love.yourvoiceback.voice.dto.request.VoiceTextToSpeechRequest;
 import com.love.yourvoiceback.voice.dto.response.CreateClonedVoiceAssetResponse;
@@ -72,6 +73,16 @@ public class VoiceController {
             @RequestParam(value = "description", required = false) String description
     ) {
         return ResponseEntity.ok(voiceService.createClonedVoice(user, file, name, description));
+    }
+
+    @PatchMapping("/{ownershipId}")
+    @Operation(summary = "내가 만든 클론 음성의 이름을 변경합니다.")
+    public ResponseEntity<OwnedVoiceAssetResponse> renameOwnedVoice(
+            @PathVariable Long ownershipId,
+            @Valid @RequestBody RenameOwnedVoiceRequest request,
+            @CurrentUser User user
+    ) {
+        return ResponseEntity.ok(voiceService.renameOwnedVoice(user, ownershipId, request));
     }
 
     @PostMapping("/{ownershipId}/text-to-speech")
