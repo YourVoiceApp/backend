@@ -2,6 +2,7 @@ package com.love.yourvoiceback.room.service;
 
 import com.love.yourvoiceback.common.exception.ApiException;
 import com.love.yourvoiceback.common.exception.ErrorCode;
+import com.love.yourvoiceback.room.controller.dto.request.RoomVoiceShareDisplayTitleRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomVoiceShareRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomVoiceShareUpdateRequest;
 import com.love.yourvoiceback.room.controller.dto.response.RoomVoiceShareResponse;
@@ -82,6 +83,21 @@ public class RoomVoiceShareService {
         RoomVoiceShare roomVoiceShare = getRoomVoiceShare(roomId, shareId);
         roomVoiceShare.setAccessScope(request.accessScope());
         applyShareDisplayTitleUpdate(roomVoiceShare, request.shareDisplayTitle());
+
+        return RoomVoiceShareResponse.from(roomVoiceShare);
+    }
+
+    @Transactional
+    public RoomVoiceShareResponse patchRoomVoiceShareDisplayTitle(
+            Long roomId,
+            Long shareId,
+            RoomVoiceShareDisplayTitleRequest request,
+            User user
+    ) {
+        getAccessibleRoom(roomId, user.getId());
+
+        RoomVoiceShare roomVoiceShare = getRoomVoiceShare(roomId, shareId);
+        replaceShareDisplayTitle(roomVoiceShare, request.shareDisplayTitle());
 
         return RoomVoiceShareResponse.from(roomVoiceShare);
     }
@@ -187,6 +203,10 @@ public class RoomVoiceShareService {
         if (shareDisplayTitle == null) {
             return;
         }
+        replaceShareDisplayTitle(roomVoiceShare, shareDisplayTitle);
+    }
+
+    private void replaceShareDisplayTitle(RoomVoiceShare roomVoiceShare, String shareDisplayTitle) {
         if (!StringUtils.hasText(shareDisplayTitle)) {
             roomVoiceShare.setShareDisplayTitle(null);
             return;

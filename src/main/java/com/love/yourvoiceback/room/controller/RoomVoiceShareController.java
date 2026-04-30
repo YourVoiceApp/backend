@@ -1,6 +1,7 @@
 package com.love.yourvoiceback.room.controller;
 
 import com.love.yourvoiceback.common.security.CurrentUser;
+import com.love.yourvoiceback.room.controller.dto.request.RoomVoiceShareDisplayTitleRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomVoiceShareRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomVoiceShareUpdateRequest;
 import com.love.yourvoiceback.room.controller.dto.response.RoomVoiceShareResponse;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -66,6 +68,17 @@ public class RoomVoiceShareController {
             @CurrentUser User user
     ) {
         return ResponseEntity.ok(roomVoiceShareService.updateRoomVoiceShare(roomId, shareId, request, user));
+    }
+
+    @PatchMapping("/{shareId}/display-title")
+    @Operation(summary = "이미 공유된 음성의 방 표시 이름만 변경합니다. 접근 범위(accessScope)는 바뀌지 않습니다.")
+    public ResponseEntity<RoomVoiceShareResponse> patchRoomVoiceShareDisplayTitle(
+            @PathVariable Long roomId,
+            @PathVariable Long shareId,
+            @Valid @RequestBody RoomVoiceShareDisplayTitleRequest request,
+            @CurrentUser User user
+    ) {
+        return ResponseEntity.ok(roomVoiceShareService.patchRoomVoiceShareDisplayTitle(roomId, shareId, request, user));
     }
 
     @DeleteMapping("/{shareId}")
