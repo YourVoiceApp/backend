@@ -18,7 +18,7 @@ public record OwnedVoiceAssetResponse(
         return new OwnedVoiceAssetResponse(
                 voiceOwnership.getId(),
                 voiceAsset.getExternalVoiceId(),
-                voiceAsset.getTitle(),
+                voiceOwnership.resolveDisplayTitle(),
                 voiceOwnership.getFolder() != null ? voiceOwnership.getFolder().getId() : null,
                 voiceOwnership.getAcquiredBy(),
                 voiceOwnership.getAcquiredAt()

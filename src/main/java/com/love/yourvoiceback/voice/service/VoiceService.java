@@ -31,7 +31,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
@@ -245,10 +244,7 @@ public class VoiceService {
         }
 
         String trimmedName = requireValidVoiceTitle(request.getName());
-
-        VoiceAsset voiceAsset = voiceOwnership.getVoiceAsset();
-        voiceAsset.setTitle(trimmedName);
-        voiceAsset.setUpdatedAt(LocalDateTime.now());
+        voiceOwnership.setDisplayTitle(trimmedName);
 
         return OwnedVoiceAssetResponse.from(voiceOwnership);
     }

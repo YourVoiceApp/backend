@@ -59,6 +59,12 @@ public class VoiceOwnership {
     @Column(nullable = false)
     private LocalDateTime acquiredAt = LocalDateTime.now();
 
+    /**
+     * 사용자 라이브러리에서만 쓰는 표시 이름. null이면 {@link VoiceAsset#getTitle()}을 그대로 사용한다.
+     */
+    @Column(length = 100)
+    private String displayTitle;
+
     public static VoiceOwnership createCreatedOwnership(User user, VoiceAsset voiceAsset) {
         return VoiceOwnership.builder()
                 .voiceAsset(voiceAsset)
@@ -73,6 +79,13 @@ public class VoiceOwnership {
 
     public void changeFolder(VoiceFolder folder) {
         this.folder = folder;
+    }
+
+    public String resolveDisplayTitle() {
+        if (displayTitle != null && !displayTitle.isBlank()) {
+            return displayTitle.trim();
+        }
+        return voiceAsset.getTitle();
     }
 
     public enum AcquisitionType {
