@@ -58,7 +58,7 @@ public class RoomVoiceShareController {
     }
 
     @PutMapping("/{shareId}")
-    @Operation(summary = "공유된 음성의 접근 범위를 수정합니다.")
+    @Operation(summary = "공유된 음성의 접근 범위 및 방 표시 이름을 수정합니다.")
     public ResponseEntity<RoomVoiceShareResponse> updateRoomVoiceShare(
             @PathVariable Long roomId,
             @PathVariable Long shareId,

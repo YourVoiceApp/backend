@@ -41,8 +41,21 @@ public class RoomVoiceShare {
     @Column(nullable = false, length = 30)
     private AccessScope accessScope;
 
+    /**
+     * 방 공유 맥락에서만 보이는 이름. null이면 {@link VoiceAsset#getTitle()}을 사용한다.
+     */
+    @Column(length = 100)
+    private String shareDisplayTitle;
+
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime sharedAt = LocalDateTime.now();
+
+    public String resolveShareVoiceTitle() {
+        if (shareDisplayTitle != null && !shareDisplayTitle.isBlank()) {
+            return shareDisplayTitle.trim();
+        }
+        return voiceAsset.getTitle();
+    }
 
 }

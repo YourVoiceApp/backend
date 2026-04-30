@@ -20,9 +20,11 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -37,10 +39,17 @@ public class RoomVoiceShareService {
     @Transactional
     public List<RoomVoiceShareResponse> createRoomVoiceShares(Long roomId, RoomVoiceShareRequest request, User user) {
         VoiceRoom room = getAccessibleRoom(roomId, user.getId());
+        validateShareDisplayTitleMap(request.externalVoiceIds(), request.shareDisplayTitlesByExternalVoiceId());
         List<VoiceAsset> voiceAssets = getOwnedVoiceAssets(roomId, request.externalVoiceIds(), user.getId());
+        Map<String, String> titleByVoiceId = request.shareDisplayTitlesByExternalVoiceId() != null
+                ? request.shareDisplayTitlesByExternalVoiceId()
+                : Map.of();
 
         return voiceAssets.stream()
-                .map(voiceAsset -> createRoomVoiceShare(room, voiceAsset, request.accessScope()))
+                .map(voiceAsset -> {
+                    String shareTitle = normalizeShareDisplayTitle(titleByVoiceId.get(voiceAsset.getExternalVoiceId()));
+                    return createRoomVoiceShare(room, voiceAsset, request.accessScope(), shareTitle);
+                })
                 .map(roomVoiceShareRepository::save)
                 .map(RoomVoiceShareResponse::from)
                 .toList();
@@ -72,6 +81,7 @@ public class RoomVoiceShareService {
 
         RoomVoiceShare roomVoiceShare = getRoomVoiceShare(roomId, shareId);
         roomVoiceShare.setAccessScope(request.accessScope());
+        applyShareDisplayTitleUpdate(roomVoiceShare, request.shareDisplayTitle());
 
         return RoomVoiceShareResponse.from(roomVoiceShare);
     }
@@ -128,13 +138,64 @@ public class RoomVoiceShareService {
     private RoomVoiceShare createRoomVoiceShare(
             VoiceRoom room,
             VoiceAsset voiceAsset,
-            @NotNull AccessScope accessScope
+            @NotNull AccessScope accessScope,
+            String shareDisplayTitle
     ) {
         return RoomVoiceShare.builder()
                 .room(room)
                 .voiceAsset(voiceAsset)
                 .accessScope(accessScope)
+                .shareDisplayTitle(shareDisplayTitle)
                 .build();
+    }
+
+    private void validateShareDisplayTitleMap(List<String> externalVoiceIds, Map<String, String> titleMap) {
+        if (titleMap == null || titleMap.isEmpty()) {
+            return;
+        }
+        Set<String> allowed = new LinkedHashSet<>(externalVoiceIds);
+        for (String key : titleMap.keySet()) {
+            if (!allowed.contains(key)) {
+                throw ApiException.error(
+                        ErrorCode.INVALID_REQUEST,
+                        "shareDisplayTitlesByExternalVoiceId contains unknown external voice id: " + key
+                );
+            }
+        }
+        for (String value : titleMap.values()) {
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
+            if (value.trim().length() > 100) {
+                throw ApiException.error(ErrorCode.INVALID_REQUEST, "Share display title must be 100 characters or fewer");
+            }
+        }
+    }
+
+    private String normalizeShareDisplayTitle(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        if (trimmed.length() > 100) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Share display title must be 100 characters or fewer");
+        }
+        return trimmed;
+    }
+
+    private void applyShareDisplayTitleUpdate(RoomVoiceShare roomVoiceShare, String shareDisplayTitle) {
+        if (shareDisplayTitle == null) {
+            return;
+        }
+        if (!StringUtils.hasText(shareDisplayTitle)) {
+            roomVoiceShare.setShareDisplayTitle(null);
+            return;
+        }
+        String trimmed = shareDisplayTitle.trim();
+        if (trimmed.length() > 100) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Share display title must be 100 characters or fewer");
+        }
+        roomVoiceShare.setShareDisplayTitle(trimmed);
     }
 
     private RoomVoiceShare getRoomVoiceShare(Long roomId, Long shareId) {

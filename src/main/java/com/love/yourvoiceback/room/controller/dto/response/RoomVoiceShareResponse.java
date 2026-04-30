@@ -21,7 +21,7 @@ public record RoomVoiceShareResponse(
                 roomVoiceShare.getRoom().getId(),
                 roomVoiceShare.getVoiceAsset().getExternalVoiceId(),
                 roomVoiceShare.getVoiceAsset().getExternalVoiceId(),
-                roomVoiceShare.getVoiceAsset().getTitle(),
+                roomVoiceShare.resolveShareVoiceTitle(),
                 roomVoiceShare.getVoiceAsset().getCreator().getNickName(),
                 roomVoiceShare.getAccessScope(),
                 roomVoiceShare.getSharedAt()
