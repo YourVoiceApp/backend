@@ -73,6 +73,14 @@ public class VoiceOwnership {
                 .build();
     }
 
+    public static VoiceOwnership createRoomSharedOwnership(User user, VoiceAsset voiceAsset) {
+        return VoiceOwnership.builder()
+                .voiceAsset(voiceAsset)
+                .user(user)
+                .acquiredBy(AcquisitionType.ROOM_SHARED)
+                .build();
+    }
+
     public void clearFolder() {
         this.folder = null;
     }

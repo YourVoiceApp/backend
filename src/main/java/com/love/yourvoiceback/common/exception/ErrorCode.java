@@ -37,6 +37,7 @@ public enum ErrorCode {
     VOICE_ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "Voice asset not found"),
     GENERATED_AUDIO_NOT_FOUND(HttpStatus.NOT_FOUND, "Generated audio not found"),
     ROOM_VOICE_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, "Room voice share not found"),
+    VOICE_SHARE_DOWNLOAD_NOT_ALLOWED(HttpStatus.FORBIDDEN, "This voice share does not allow adding to your library"),
 
     SUPERTONE_BAD_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request for Supertone voice cloning"),
     SUPERTONE_UNAUTHORIZED(HttpStatus.BAD_GATEWAY, "Supertone API authentication failed"),

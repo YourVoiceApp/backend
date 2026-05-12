@@ -239,8 +239,9 @@ public class VoiceService {
         VoiceOwnership voiceOwnership = voiceOwnershipRepository.findByIdAndUserId(ownershipId, user.getId())
                 .orElseThrow(() -> ApiException.error(ErrorCode.VOICE_ASSET_NOT_FOUND));
 
-        if (voiceOwnership.getAcquiredBy() != VoiceOwnership.AcquisitionType.CREATED) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Only voices you created can be renamed");
+        if (voiceOwnership.getAcquiredBy() != VoiceOwnership.AcquisitionType.CREATED
+                && voiceOwnership.getAcquiredBy() != VoiceOwnership.AcquisitionType.ROOM_SHARED) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "This voice cannot be renamed");
         }
 
         String trimmedName = requireValidVoiceTitle(request.getName());

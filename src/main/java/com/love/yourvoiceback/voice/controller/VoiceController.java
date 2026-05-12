@@ -76,7 +76,7 @@ public class VoiceController {
     }
 
     @PatchMapping("/{ownershipId}")
-    @Operation(summary = "내가 만든 클론 음성의 이름을 변경합니다.")
+    @Operation(summary = "직접 만든 클론 음성 또는 방 공유로 받은 음성의 표시 이름을 변경합니다.")
     public ResponseEntity<OwnedVoiceAssetResponse> renameOwnedVoice(
             @PathVariable Long ownershipId,
             @Valid @RequestBody RenameOwnedVoiceRequest request,

@@ -42,6 +42,9 @@ public interface VoiceOwnershipRepository extends JpaRepository<VoiceOwnership, 
     @EntityGraph(attributePaths = {"voiceAsset", "folder"})
     Optional<VoiceOwnership> findByIdAndUserId(Long id, Long userId);
 
+    @EntityGraph(attributePaths = {"voiceAsset", "folder"})
+    Optional<VoiceOwnership> findByUserIdAndVoiceAssetExternalVoiceId(Long userId, String externalVoiceId);
+
     interface FolderVoiceCountProjection {
         Long getFolderId();
 

@@ -7,6 +7,7 @@ import com.love.yourvoiceback.room.controller.dto.request.RoomVoiceShareUpdateRe
 import com.love.yourvoiceback.room.controller.dto.response.RoomVoiceShareResponse;
 import com.love.yourvoiceback.room.service.RoomVoiceShareService;
 import com.love.yourvoiceback.user.User;
+import com.love.yourvoiceback.voice.dto.response.OwnedVoiceAssetResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,16 @@ public class RoomVoiceShareController {
             @CurrentUser User user
     ) {
         return ResponseEntity.ok(roomVoiceShareService.getRoomVoiceShare(roomId, shareId, user));
+    }
+
+    @PostMapping("/{shareId}/claim")
+    @Operation(summary = "다운로드 허용된 공유 음성을 내 라이브러리에 추가합니다. 이후 기존 TTS API로 음성을 사용할 수 있습니다.")
+    public ResponseEntity<OwnedVoiceAssetResponse> claimSharedVoice(
+            @PathVariable Long roomId,
+            @PathVariable Long shareId,
+            @CurrentUser User user
+    ) {
+        return ResponseEntity.ok(roomVoiceShareService.claimSharedVoice(roomId, shareId, user));
     }
 
     @PutMapping("/{shareId}")

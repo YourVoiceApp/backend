@@ -212,16 +212,6 @@ public class RoomService {
         if (membership.getStatus() == MembershipStatus.BLOCKED) {
             throw ApiException.error(ErrorCode.INVALID_REQUEST, "Blocked users cannot join this room");
         }
-        if (membership.getStatus() == MembershipStatus.ACTIVE) {
-            return room;
-        }
-
-        ensureRoomHasCapacity(room.getId(), room.getMaxParticipants());
-        membership.setStatus(MembershipStatus.ACTIVE);
-        if (membership.getRole() == null) {
-            membership.setRole(MembershipRole.MEMBER);
-        }
-        membership.setJoinedAt(LocalDateTime.now());
         return room;
     }
 

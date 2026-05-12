@@ -16,6 +16,7 @@ import com.love.yourvoiceback.room.reopository.RoomVoiceShareRepository;
 import com.love.yourvoiceback.user.User;
 import com.love.yourvoiceback.voice.domain.VoiceAsset;
 import com.love.yourvoiceback.voice.domain.VoiceOwnership;
+import com.love.yourvoiceback.voice.dto.response.OwnedVoiceAssetResponse;
 import com.love.yourvoiceback.voice.repository.VoiceOwnershipRepository;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -69,6 +70,30 @@ public class RoomVoiceShareService {
     public RoomVoiceShareResponse getRoomVoiceShare(Long roomId, Long shareId, User user) {
         getAccessibleRoom(roomId, user.getId());
         return RoomVoiceShareResponse.from(getRoomVoiceShare(roomId, shareId));
+    }
+
+    @Transactional
+    public OwnedVoiceAssetResponse claimSharedVoice(Long roomId, Long shareId, User user) {
+        getAccessibleRoom(roomId, user.getId());
+
+        RoomVoiceShare share = getRoomVoiceShare(roomId, shareId);
+        if (share.getAccessScope() != AccessScope.DOWNLOAD_ALLOWED) {
+            throw ApiException.error(ErrorCode.VOICE_SHARE_DOWNLOAD_NOT_ALLOWED);
+        }
+
+        VoiceAsset voiceAsset = share.getVoiceAsset();
+
+        return voiceOwnershipRepository
+                .findByUserIdAndVoiceAssetExternalVoiceId(user.getId(), voiceAsset.getExternalVoiceId())
+                .map(OwnedVoiceAssetResponse::from)
+                .orElseGet(() -> {
+                    VoiceOwnership ownership = VoiceOwnership.createRoomSharedOwnership(user, voiceAsset);
+                    if (StringUtils.hasText(share.getShareDisplayTitle())) {
+                        ownership.setDisplayTitle(share.getShareDisplayTitle().trim());
+                    }
+                    VoiceOwnership saved = voiceOwnershipRepository.save(ownership);
+                    return OwnedVoiceAssetResponse.from(saved);
+                });
     }
 
     @Transactional
