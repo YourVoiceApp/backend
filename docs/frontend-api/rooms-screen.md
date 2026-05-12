@@ -7,6 +7,7 @@
 - 서버 연동 대상 API는 준비되어 있음
 - 방 API 전체
   - `/room`
+  - `/room/discover`
   - `/room/join`
   - `/room/{roomId}`
   - `/room/{roomId}/members`
@@ -22,6 +23,7 @@
 
 - `POST /room`
 - `GET /room`
+- `GET /room/discover`
 - `POST /room/join`
 - `GET /room/{roomId}`
 - `GET /room/{roomId}/members`
@@ -34,7 +36,13 @@
 - `GET /room/{roomId}/voice-shares`
 - `GET /room/{roomId}/voice-shares/{shareId}`
 - `PUT /room/{roomId}/voice-shares/{shareId}`
+- `PATCH /room/{roomId}/voice-shares/{shareId}/display-title`
+- `POST /room/{roomId}/voice-shares/{shareId}/claim`
 - `DELETE /room/{roomId}/voice-shares/{shareId}`
+
+**프론트 인계(단일 파일):** [frontend-handoff-single-doc.md](./frontend-handoff-single-doc.md)
+
+보조: [frontend-room-voice-integration-spec.md](./frontend-room-voice-integration-spec.md) (내용 중복 보관본)
 
 ## enum 값
 
@@ -350,6 +358,7 @@ Response:
 
 ## 프론트 구현 메모
 
+- 프론트 인계 단일 명세는 [frontend-handoff-single-doc.md](./frontend-handoff-single-doc.md) 참고
 - 목록 화면은 `GET /room`
 - 입장 화면은 `POST /room/join`
 - 멤버 영역은 `GET /room/{roomId}/members`

@@ -1,6 +1,8 @@
 package com.love.yourvoiceback.room.reopository;
 
 import com.love.yourvoiceback.room.domain.VoiceRoom;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -14,4 +16,6 @@ public interface RoomRepository extends JpaRepository<VoiceRoom,Long>{
     Optional<VoiceRoom> findByInviteCode(Integer inviteCode);
 
     boolean existsByInviteCode(Integer inviteCode);
+
+    Page<VoiceRoom> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

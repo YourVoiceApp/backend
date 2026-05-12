@@ -5,6 +5,8 @@ import com.love.yourvoiceback.common.exception.ErrorCode;
 import com.love.yourvoiceback.room.controller.dto.request.RoomCreateRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomJoinRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomUpdateRequest;
+import com.love.yourvoiceback.room.controller.dto.response.RoomBrowsePageResponse;
+import com.love.yourvoiceback.room.controller.dto.response.RoomBrowseResponse;
 import com.love.yourvoiceback.room.controller.dto.response.RoomMemberResponse;
 import com.love.yourvoiceback.room.controller.dto.response.RoomResponse;
 import com.love.yourvoiceback.room.domain.RoomMembership;
@@ -18,18 +20,26 @@ import com.love.yourvoiceback.room.reopository.RoomVoiceShareRepository;
 import com.love.yourvoiceback.user.User;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class RoomService {
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final int MAX_BROWSE_PAGE_SIZE = 50;
 
     private final RoomRepository roomRepository;
     private final RoomMembershipRepository roomMembershipRepository;
@@ -56,9 +66,7 @@ public class RoomService {
 
     @Transactional
     public RoomResponse joinRoom(RoomJoinRequest request, User user) {
-        VoiceRoom room = roomRepository.findByInviteCode(parseInviteCode(request.inviteCode()))
-                .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
-
+        VoiceRoom room = resolveRoomForJoin(request);
         validateJoinRequest(room, request.password());
 
         RoomMembership existingMembership = roomMembershipRepository.findByRoomIdAndUserId(room.getId(), user.getId())
@@ -70,6 +78,30 @@ public class RoomService {
         ensureRoomHasCapacity(room.getId(), room.getMaxParticipants());
         roomMembershipRepository.save(RoomMembership.join(user, room));
         return RoomResponse.from(room);
+    }
+
+    @Transactional(readOnly = true)
+    public RoomBrowsePageResponse browseRooms(Pageable pageable) {
+        int size = Math.min(Math.max(1, pageable.getPageSize()), MAX_BROWSE_PAGE_SIZE);
+        int page = Math.max(0, pageable.getPageNumber());
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<VoiceRoom> roomPage = roomRepository.findAllByOrderByCreatedAtDesc(pageRequest);
+        List<VoiceRoom> rooms = roomPage.getContent();
+        Map<Long, Long> activeCounts = resolveActiveMemberCounts(rooms);
+
+        List<RoomBrowseResponse> items = rooms.stream()
+                .map(room -> RoomBrowseResponse.from(room, activeCounts.getOrDefault(room.getId(), 0L)))
+                .toList();
+
+        return new RoomBrowsePageResponse(
+                items,
+                roomPage.getTotalElements(),
+                roomPage.getTotalPages(),
+                roomPage.getNumber(),
+                roomPage.getSize(),
+                roomPage.isFirst(),
+                roomPage.isLast()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -179,6 +211,49 @@ public class RoomService {
         }
         return roomRepository.findById(roomId)
                 .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
+    }
+
+    private VoiceRoom resolveRoomForJoin(RoomJoinRequest request) {
+        boolean hasInvite = StringUtils.hasText(request.inviteCode());
+        boolean hasRoomId = request.roomId() != null;
+        if (hasInvite && hasRoomId) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Provide either inviteCode or roomId, not both");
+        }
+        if (!hasInvite && !hasRoomId) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Either inviteCode or roomId is required");
+        }
+        if (hasRoomId) {
+            VoiceRoom room = roomRepository.findById(request.roomId())
+                    .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
+            if (room.getJoinPolicy() != JoinPolicy.INVITE_CODE_WITH_PASSWORD) {
+                throw ApiException.error(
+                        ErrorCode.INVALID_REQUEST,
+                        "Password-only join is only for password-protected rooms; use invite code for this room"
+                );
+            }
+            return room;
+        }
+
+        String trimmed = request.inviteCode().trim();
+        if (!trimmed.matches("\\d{6}")) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Invite code must be a 6-digit number");
+        }
+        return roomRepository.findByInviteCode(parseInviteCode(trimmed))
+                .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
+    }
+
+    private Map<Long, Long> resolveActiveMemberCounts(List<VoiceRoom> rooms) {
+        if (rooms.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = rooms.stream().map(VoiceRoom::getId).toList();
+        Map<Long, Long> counts = new HashMap<>();
+        for (RoomMembershipRepository.ActiveMemberCountProjection row
+                : roomMembershipRepository.countActiveMembersByRoomIds(ids, MembershipStatus.ACTIVE)) {
+            Long cnt = row.getMemberCount();
+            counts.put(row.getRoomId(), cnt != null ? cnt : 0L);
+        }
+        return counts;
     }
 
     private Integer generateInviteCode() {

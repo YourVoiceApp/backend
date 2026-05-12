@@ -4,6 +4,7 @@ import com.love.yourvoiceback.common.security.CurrentUser;
 import com.love.yourvoiceback.room.controller.dto.request.RoomCreateRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomJoinRequest;
 import com.love.yourvoiceback.room.controller.dto.request.RoomUpdateRequest;
+import com.love.yourvoiceback.room.controller.dto.response.RoomBrowsePageResponse;
 import com.love.yourvoiceback.room.controller.dto.response.RoomMemberResponse;
 import com.love.yourvoiceback.room.controller.dto.response.RoomResponse;
 import com.love.yourvoiceback.room.service.RoomService;
@@ -11,6 +12,9 @@ import com.love.yourvoiceback.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,7 +46,7 @@ public class RoomController {
     }
 
     @PostMapping("/join")
-    @Operation(summary = "초대 코드로 방에 입장합니다.")
+    @Operation(summary = "방에 입장합니다. 초대 코드 또는(비밀번호 방만) 방 ID + 비밀번호.")
     public ResponseEntity<RoomResponse> joinRoom(
             @Valid @RequestBody RoomJoinRequest request,
             @CurrentUser User user
@@ -54,6 +58,15 @@ public class RoomController {
     @Operation(summary = "현재 로그인한 사용자가 참여 중인 방 목록을 조회합니다.")
     public ResponseEntity<List<RoomResponse>> getMyRooms(@CurrentUser User user) {
         return ResponseEntity.ok(roomService.getMyRooms(user));
+    }
+
+    @GetMapping("/discover")
+    @Operation(summary = "전체 방 목록을 페이지로 조회합니다. 초대 코드는 내려주지 않습니다.")
+    public ResponseEntity<RoomBrowsePageResponse> discoverRooms(
+            @PageableDefault(size = 20, direction = Sort.Direction.DESC, sort = "createdAt") Pageable pageable,
+            @CurrentUser User user
+    ) {
+        return ResponseEntity.ok(roomService.browseRooms(pageable));
     }
 
     @GetMapping("/{roomId}")

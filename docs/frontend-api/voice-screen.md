@@ -4,6 +4,7 @@
 
 ## 현재 상태
 
+- 프론트 인계 단일 명세: [frontend-handoff-single-doc.md](./frontend-handoff-single-doc.md)
 - 서버 연동 가능
   - 폴더 목록/내용 조회
   - 내 음성 목록 조회
@@ -28,6 +29,7 @@
 - `GET /voices`
 - `GET /voices/unassigned`
 - `PATCH /voices/folder`
+- `PATCH /voices/{ownershipId}` (표시 이름 변경; `CREATED`, `ROOM_SHARED` 만)
 - `POST /voices/cloned-voice`
 - `DELETE /voices/{ownershipId}`
 - `POST /voices/{ownershipId}/text-to-speech`
