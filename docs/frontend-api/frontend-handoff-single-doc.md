@@ -12,9 +12,51 @@
 | 방 공유 이름 | 생성 시 선택 **`shareDisplayTitlesByExternalVoiceId`** 맵. 수정 **`PUT`** 의 선택 **`shareDisplayTitle`**, 또는 **`PATCH .../display-title`**. 응답 **`voiceTitle`** 은 방 표시 이름 우선. |
 | 클레임 | **`POST /room/{roomId}/voice-shares/{shareId}/claim`** — **`DOWNLOAD_ALLOWED`** 만. 내 라이브러리에 **`ROOM_SHARED`** 소유권 생성(멱등). 이후 **`POST /voices/{ownershipId}/text-to-speech`**. |
 | 멤버십 상태 | **`INVITED` / `LEFT` 제거**. **`ACTIVE`**, **`BLOCKED`** 만. |
-| 방 목록 | **`GET /room/discover`** — 전체 방 페이지네이션, **`passwordProtected`**, **`activeMemberCount`**, 초대 코드 **미포함**. |
-| 방 입장 | **`POST /room/join`** — **`inviteCode` 와 `roomId` 동시 사용 불가**. 비밀번호 방은 **`roomId` + `password` 만**으로 입장 가능 (`INVITE_CODE_WITH_PASSWORD` 만). |
+| 방 목록 | **`GET /room/discover`** — 전체 방 페이지네이션, **`passwordProtected`**, **`activeMemberCount`**. |
+| **방 유형** | **`joinPolicy`** 는 **`PUBLIC`(공개방)** / **`PASSWORD_PROTECTED`(비밀번호방)** 만. **초대 코드(inviteCode)는 API에서 제거** — 입장은 항상 **`roomId`** 기준. |
+| 방 입장 | **`POST /room/join`** — 바디 **`{ "roomId": number, "password"?: string }`**. 공개 방은 `password` 없음 / 비밀번호 방은 `password` 필수. |
+| 방 응답 | **`RoomResponse`** 에 **`inviteCode` 필드 없음** (신규 방은 DB에도 초대 코드 미사용). |
 | 에러 코드 | **`VOICE_SHARE_DOWNLOAD_NOT_ALLOWED`** (`403`) — 클레임 시 다운로드 미허용 공유. |
+
+---
+
+## 방 입장 모델 변경 — 통합 정리
+
+**초대 코드(inviteCode) 기반 입장을 없애고**, 방 종류를 **공개방(`PUBLIC`)** 과 **비밀번호방(`PASSWORD_PROTECTED`)** 두 가지만 두었습니다. 프론트는 디스커버·목록·딥링크 등에서 얻은 **`roomId`로만 입장**하면 됩니다.
+
+### 이전 vs 이후
+
+| 항목 | 이전 | 이후 |
+|------|------|------|
+| 방 종류 (`joinPolicy`) | `INVITE_CODE_ONLY`, `INVITE_CODE_WITH_PASSWORD` | **`PUBLIC`**, **`PASSWORD_PROTECTED`** |
+| 입장 식별자 | 초대 코드(+ 선택 비밀번호) | **`roomId`** (+ 비밀번호방만 **`password`**) |
+| 방 조회 응답 | `inviteCode` 포함 가능 | **`inviteCode` 필드 없음** (`RoomResponse`) |
+| 생성 규칙 | 정책별 초대 코드 발급 등 | 공개방은 **`password` 금지**, 비밀번호방은 **`password` 필수** |
+
+### 제거·폐기된 계약
+
+- **`RoomJoinRequest`**: `inviteCode` 제거 → **`roomId`(필수), `password`(선택)** 만 허용.
+- **`RoomResponse`**: `inviteCode` 제거.
+- **`RoomRepository`**: 초대 코드로 방 조회(`findByInviteCode` 등) 제거 — 입장 경로는 **`roomId`** 단일.
+- 디스커버 응답 **`RoomBrowseResponse`**: UI 편의용 **`passwordProtected`** (`joinPolicy === PASSWORD_PROTECTED`) 유지.
+
+### 서버 동작 요약
+
+- **`POST /room/join`**: 방을 **`request.roomId`** 로만 조회 후, 아직 멤버가 아니면 **`joinPolicy`에 따라 비밀번호 검증**. 공개방에 비밀번호가 오면 `400`.
+- **이미 멤버인 경우**: 재입장 시 **`password` 검증 없이** `200` + `RoomResponse`(멤버십 상태 정상화 등 기존 로직).
+- **`PUT /room/{roomId}`**: **`PUBLIC`으로 바꿀 때** 저장된 비밀번호 해시 제거.
+
+### 프론트엔드 마이그레이션 체크리스트
+
+1. 입장 화면 요청 본문을 **`{ roomId, password? }`** 로 교체하고, 초대 코드 입력 UI·검증 제거.
+2. 방 카드/상세 모델에서 **`inviteCode` 표시·복사·공유** 제거; 공유는 **`roomId`(및 필요 시 비밀번호 안내)** 기준으로 재설계.
+3. 생성·수정 폼: **`joinPolicy`** 값을 **`PUBLIC` / `PASSWORD_PROTECTED`** 만 선택 가능하게 변경.
+4. API 타입·목업에서 **`inviteCode`** 필드 제거.
+5. 에러 처리: 공개방에 비밀번호 전송, 비밀번호방 미입력/오류는 **`INVALID_REQUEST`** 등 기존 코드 활용.
+
+### 운영 DB
+
+기존 행에 `INVITE_CODE_*` 가 남아 있으면 JPA enum 매핑이 깨질 수 있습니다. 아래 **`기존 DB 마이그레이션`** 절의 SQL로 `join_policy` 문자열을 치환하세요. 레거시 `invite_code` 컬럼은 신규 방에서 **null** 이면 되며, 스키마가 NOT NULL이면 해당 절의 `ALTER` 참고.
 
 ---
 
@@ -76,8 +118,8 @@
 
 ### `joinPolicy`
 
-- `INVITE_CODE_ONLY`
-- `INVITE_CODE_WITH_PASSWORD`
+- **`PUBLIC`** — 누구나 **`roomId`** 로 입장. 비밀번호 없음.
+- **`PASSWORD_PROTECTED`** — **`roomId` + 올바른 `password`** 필요.
 
 ### 공유 `accessScope`
 
@@ -112,26 +154,41 @@
 
 요청 **`title`**, 응답 **`name`**.
 
+**공개 방:**
+
 ```json
 {
-  "title": "우리 가족 방",
-  "joinPolicy": "INVITE_CODE_ONLY",
-  "maxParticipants": 3,
+  "title": "오픈 채널",
+  "joinPolicy": "PUBLIC",
+  "maxParticipants": 50,
   "password": null
 }
 ```
 
-비밀번호 방: `"joinPolicy": "INVITE_CODE_WITH_PASSWORD"`, `"password": "1234"`.
+공개 방에는 **`password` 를 보내면 안 됩니다**(보내면 `400`).
+
+**비밀번호 방:**
+
+```json
+{
+  "title": "가족 방",
+  "joinPolicy": "PASSWORD_PROTECTED",
+  "maxParticipants": 10,
+  "password": "1234"
+}
+```
+
+비밀번호 방은 **`password` 필수.**
 
 ### 내 참여 방 목록 `GET /room`
 
-**`RoomResponse[]`**: `id`, `ownerId`, `name`, **`inviteCode` 포함**, `joinPolicy`, `maxParticipants`, `createdAt`, `updatedAt`.
+**`RoomResponse[]`**: `id`, `ownerId`, `name`, `joinPolicy`, `maxParticipants`, `createdAt`, `updatedAt`. (**`inviteCode` 없음.**)
 
 ---
 
 ### 전체 방 목록(발견) `GET /room/discover`
 
-모든 방을 **`createdAt` 내림차순** 페이지로 조회. **`inviteCode` 없음.**
+모든 방을 **`createdAt` 내림차순** 페이지로 조회.
 
 **쿼리:** `page`(기본 0), `size`(기본 20, 서버 최대 **50**).
 
@@ -146,8 +203,8 @@ GET /room/discover?page=0&size=20
   "content": [
     {
       "id": 6,
-      "name": "우리 가족 방",
-      "joinPolicy": "INVITE_CODE_WITH_PASSWORD",
+      "name": "가족 방",
+      "joinPolicy": "PASSWORD_PROTECTED",
       "passwordProtected": true,
       "activeMemberCount": 3,
       "maxParticipants": 10,
@@ -155,11 +212,11 @@ GET /room/discover?page=0&size=20
     },
     {
       "id": 7,
-      "name": "공개 모임",
-      "joinPolicy": "INVITE_CODE_ONLY",
+      "name": "오픈 모임",
+      "joinPolicy": "PUBLIC",
       "passwordProtected": false,
       "activeMemberCount": 1,
-      "maxParticipants": 5,
+      "maxParticipants": 50,
       "createdAt": "2026-05-11T12:00:00"
     }
   ],
@@ -172,38 +229,13 @@ GET /room/discover?page=0&size=20
 }
 ```
 
-- **`passwordProtected`**: `joinPolicy === INVITE_CODE_WITH_PASSWORD` 와 동일(UI 자물쇠 등).
-- **`activeMemberCount`**: ACTIVE 멤버 수.
+- **`passwordProtected`**: `joinPolicy === PASSWORD_PROTECTED` 와 동일(UI 자물쇠 등).
 
 ---
 
 ### 입장 `POST /room/join`
 
-바디 **`RoomJoinRequest`**: `inviteCode`, `roomId`, `password` — **`inviteCode` 와 `roomId` 중 하나만** 사용.
-
-#### 방식 A — 초대 코드
-
-```json
-{
-  "inviteCode": "720341",
-  "password": null
-}
-```
-
-비밀번호 방:
-
-```json
-{
-  "inviteCode": "720341",
-  "password": "1234"
-}
-```
-
-`inviteCode`: 문자열 **6자리 숫자**.
-
-#### 방식 B — 비밀번호만 (`INVITE_CODE_WITH_PASSWORD` 만)
-
-목록에서 받은 **`id`** 사용:
+바디 **`RoomJoinRequest`**:
 
 ```json
 {
@@ -212,21 +244,26 @@ GET /room/discover?page=0&size=20
 }
 ```
 
-`inviteCode` 는 null 또는 생략. **`INVITE_CODE_ONLY`** 방은 **`roomId` 입장 불가** → `400`.
+| 유형 | 바디 |
+|------|------|
+| **공개 방** | `{ "roomId": 7 }` — **`password` 생략 또는 null**. 비밀번호를 보내면 `400`. |
+| **비밀번호 방** | `{ "roomId": 6, "password": "1234" }` — **`password` 필수**. |
 
-#### 규칙·오류
+`roomId` 는 **`@NotNull`** (필수).
+
+이미 해당 방 **멤버**이면 비밀번호 검증 없이 **`200`** 으로 기존과 동일 **`RoomResponse`** 반환.
+
+#### 오류 예시
 
 | 상황 | `code` |
 |------|--------|
-| 둘 다 없음 / 둘 다 있음 | `INVALID_REQUEST` |
-| 초대 코드 형식 오류 | `INVALID_REQUEST` |
+| 공개 방인데 `password` 있음 | `INVALID_REQUEST` |
+| 비밀번호 방인데 `password` 없음/틀림 | `INVALID_REQUEST` |
 | 방 없음 | `ROOM_NOT_FOUND` |
-| 비번 없음/틀림 | `INVALID_REQUEST` |
-| 초대 전용 방에 `roomId` 입장 | `INVALID_REQUEST` |
 | 정원 초과 | `INVALID_REQUEST` |
 | 차단 유저 | `INVALID_REQUEST` |
 
-성공 **`200`** — **`RoomResponse`** (기존과 동일). 이미 멤버여도 **`200`**.
+성공 **`200`** — **`RoomResponse`**.
 
 ---
 
@@ -234,16 +271,15 @@ GET /room/discover?page=0&size=20
 
 - **`GET /room/{roomId}`** — 참여 멤버만.
 - **`GET /room/{roomId}/members`** — 항목: `id`(유저), `displayName`, `role`.
-- **`PUT /room/{roomId}`** — 생성과 유형 동일 필드.
+- **`PUT /room/{roomId}`** — 생성과 같은 필드 타입(`joinPolicy` 는 `PUBLIC` / `PASSWORD_PROTECTED`). 공개로 바꾸면 저장 비밀번호 해시 제거.
 - **`DELETE /room/{roomId}`** — **204**.
 
 ---
 
 ### 방 발견 UI 플로우 권장
 
-1. **`GET /room/discover`** 로 카드 리스트 (`passwordProtected`, `activeMemberCount` / `maxParticipants`).
-2. 비밀번호 방 → **`POST /join`** `{ roomId, password }`.
-3. 초대만 방 → 사용자에게 코드 입력 → **`POST /join`** `{ inviteCode }` (+ 필요 시 `password` 없음).
+1. **`GET /room/discover`** 로 카드 리스트.
+2. 항목 선택 후 **`POST /room/join`**: 공개면 `roomId` 만, 비밀번호 방이면 비밀번호 입력 후 `roomId` + `password`.
 
 ---
 
@@ -386,6 +422,25 @@ Body 없음. **`DOWNLOAD_ALLOWED`** 만. **`403`** `VOICE_SHARE_DOWNLOAD_NOT_ALL
 2. **`DOWNLOAD_ALLOWED`** 만 「내 음성 추가」→ **`POST .../claim`**
 3. **`POST /voices/{ownershipId}/text-to-speech`**
 4. 방 표시명과 라이브러리명 분리 시 **`PATCH /voices/{ownershipId}`**
+
+---
+
+## 기존 DB 마이그레이션 (운영·스테이징)
+
+`join_policy` 컬럼 문자열을 교체해야 하는 경우 예시(SQL은 DB 제품에 맞게 조정):
+
+```sql
+UPDATE voice_room SET join_policy = 'PUBLIC' WHERE join_policy = 'INVITE_CODE_ONLY';
+UPDATE voice_room SET join_policy = 'PASSWORD_PROTECTED' WHERE join_policy = 'INVITE_CODE_WITH_PASSWORD';
+```
+
+초대 코드 컬럼은 레거시일 수 있음. 신규 방은 **null** 허용이 필요하면:
+
+```sql
+ALTER TABLE voice_room MODIFY COLUMN invite_code INT NULL;
+```
+
+(JPA `ddl-auto: update` 사용 시 환경에 따라 자동 반영되기도 함.)
 
 ---
 

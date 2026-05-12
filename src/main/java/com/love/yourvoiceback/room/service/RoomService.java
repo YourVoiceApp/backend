@@ -29,7 +29,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +37,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class RoomService {
-    private static final SecureRandom RANDOM = new SecureRandom();
     private static final int MAX_BROWSE_PAGE_SIZE = 50;
 
     private final RoomRepository roomRepository;
@@ -53,7 +51,6 @@ public class RoomService {
         VoiceRoom voiceRoom = VoiceRoom.of(
                 user,
                 request.getTitle().trim(),
-                generateInviteCode(),
                 request.getJoinPolicy(),
                 resolvePasswordHash(request),
                 request.getMaxParticipants()
@@ -66,14 +63,16 @@ public class RoomService {
 
     @Transactional
     public RoomResponse joinRoom(RoomJoinRequest request, User user) {
-        VoiceRoom room = resolveRoomForJoin(request);
-        validateJoinRequest(room, request.password());
+        VoiceRoom room = roomRepository.findById(request.roomId())
+                .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
 
         RoomMembership existingMembership = roomMembershipRepository.findByRoomIdAndUserId(room.getId(), user.getId())
                 .orElse(null);
         if (existingMembership != null) {
             return RoomResponse.from(rejoinRoom(existingMembership, room));
         }
+
+        validateJoinRequest(room, request.password());
 
         ensureRoomHasCapacity(room.getId(), room.getMaxParticipants());
         roomMembershipRepository.save(RoomMembership.join(user, room));
@@ -150,33 +149,31 @@ public class RoomService {
     }
 
     private void validateCreateRoomRequest(RoomCreateRequest request) {
-        if (request.getJoinPolicy() == JoinPolicy.INVITE_CODE_WITH_PASSWORD
-                && (request.getPassword() == null || request.getPassword().isBlank())) {
+        if (request.getJoinPolicy() == JoinPolicy.PASSWORD_PROTECTED
+                && !StringUtils.hasText(request.getPassword())) {
             throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is required for password-protected rooms");
         }
 
-        if (request.getJoinPolicy() == JoinPolicy.INVITE_CODE_ONLY
-                && request.getPassword() != null
-                && !request.getPassword().isBlank()) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is only allowed for password-protected rooms");
+        if (request.getJoinPolicy() == JoinPolicy.PUBLIC
+                && StringUtils.hasText(request.getPassword())) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is not used for public rooms");
         }
     }
 
     private void validateUpdateRoomRequest(RoomUpdateRequest request, VoiceRoom room) {
-        if (request.getJoinPolicy() == JoinPolicy.INVITE_CODE_WITH_PASSWORD
+        if (request.getJoinPolicy() == JoinPolicy.PASSWORD_PROTECTED
                 && !hasPasswordForProtectedRoom(request, room)) {
             throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is required for password-protected rooms");
         }
 
-        if (request.getJoinPolicy() == JoinPolicy.INVITE_CODE_ONLY
-                && request.getPassword() != null
-                && !request.getPassword().isBlank()) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is only allowed for password-protected rooms");
+        if (request.getJoinPolicy() == JoinPolicy.PUBLIC
+                && StringUtils.hasText(request.getPassword())) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is not used for public rooms");
         }
     }
 
     private String resolvePasswordHash(RoomCreateRequest request) {
-        if (request.getJoinPolicy() == JoinPolicy.INVITE_CODE_ONLY) {
+        if (request.getJoinPolicy() == JoinPolicy.PUBLIC) {
             return null;
         }
 
@@ -184,7 +181,7 @@ public class RoomService {
     }
 
     private String resolveUpdatedPasswordHash(RoomUpdateRequest request, VoiceRoom room) {
-        if (request.getJoinPolicy() == JoinPolicy.INVITE_CODE_ONLY) {
+        if (request.getJoinPolicy() == JoinPolicy.PUBLIC) {
             return null;
         }
 
@@ -213,35 +210,6 @@ public class RoomService {
                 .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
     }
 
-    private VoiceRoom resolveRoomForJoin(RoomJoinRequest request) {
-        boolean hasInvite = StringUtils.hasText(request.inviteCode());
-        boolean hasRoomId = request.roomId() != null;
-        if (hasInvite && hasRoomId) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Provide either inviteCode or roomId, not both");
-        }
-        if (!hasInvite && !hasRoomId) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Either inviteCode or roomId is required");
-        }
-        if (hasRoomId) {
-            VoiceRoom room = roomRepository.findById(request.roomId())
-                    .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
-            if (room.getJoinPolicy() != JoinPolicy.INVITE_CODE_WITH_PASSWORD) {
-                throw ApiException.error(
-                        ErrorCode.INVALID_REQUEST,
-                        "Password-only join is only for password-protected rooms; use invite code for this room"
-                );
-            }
-            return room;
-        }
-
-        String trimmed = request.inviteCode().trim();
-        if (!trimmed.matches("\\d{6}")) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Invite code must be a 6-digit number");
-        }
-        return roomRepository.findByInviteCode(parseInviteCode(trimmed))
-                .orElseThrow(() -> ApiException.error(ErrorCode.ROOM_NOT_FOUND));
-    }
-
     private Map<Long, Long> resolveActiveMemberCounts(List<VoiceRoom> rooms) {
         if (rooms.isEmpty()) {
             return Map.of();
@@ -256,30 +224,19 @@ public class RoomService {
         return counts;
     }
 
-    private Integer generateInviteCode() {
-        Integer inviteCode;
-        do {
-            inviteCode = 100000 + RANDOM.nextInt(900000);
-        } while (roomRepository.existsByInviteCode(inviteCode));
-        return inviteCode;
-    }
-
-    private int parseInviteCode(String inviteCode) {
-        try {
-            return Integer.parseInt(inviteCode);
-        } catch (NumberFormatException exception) {
-            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Invite code must be a 6-digit number");
-        }
-    }
-
     private void validateJoinRequest(VoiceRoom room, String password) {
-        if (room.getJoinPolicy() == JoinPolicy.INVITE_CODE_WITH_PASSWORD) {
-            if (password == null || password.isBlank()) {
-                throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is required for password-protected rooms");
+        if (room.getJoinPolicy() == JoinPolicy.PUBLIC) {
+            if (StringUtils.hasText(password)) {
+                throw ApiException.error(ErrorCode.INVALID_REQUEST, "Public rooms do not use a password");
             }
-            if (!passwordEncoder.matches(password, room.getPasswordHash())) {
-                throw ApiException.error(ErrorCode.INVALID_REQUEST, "Room password is incorrect");
-            }
+            return;
+        }
+
+        if (!StringUtils.hasText(password)) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Password is required for password-protected rooms");
+        }
+        if (room.getPasswordHash() == null || !passwordEncoder.matches(password, room.getPasswordHash())) {
+            throw ApiException.error(ErrorCode.INVALID_REQUEST, "Room password is incorrect");
         }
     }
 

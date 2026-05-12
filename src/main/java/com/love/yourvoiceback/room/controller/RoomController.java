@@ -46,7 +46,7 @@ public class RoomController {
     }
 
     @PostMapping("/join")
-    @Operation(summary = "방에 입장합니다. 초대 코드 또는(비밀번호 방만) 방 ID + 비밀번호.")
+    @Operation(summary = "방에 입장합니다. 공개 방은 roomId만, 비밀번호 방은 roomId와 비밀번호.")
     public ResponseEntity<RoomResponse> joinRoom(
             @Valid @RequestBody RoomJoinRequest request,
             @CurrentUser User user

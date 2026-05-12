@@ -64,8 +64,10 @@
 
 ### 방 `joinPolicy`
 
-- `INVITE_CODE_ONLY`
-- `INVITE_CODE_WITH_PASSWORD`
+- **`PUBLIC`** — 공개 방 (`roomId`만으로 입장)
+- **`PASSWORD_PROTECTED`** — 비밀번호 방 (`roomId` + `password`)
+
+초대 코드(`inviteCode`)는 사용하지 않습니다. **`RoomResponse`에도 `inviteCode` 필드 없음.**
 
 ### 방 공유 `accessScope`
 
@@ -113,17 +115,17 @@
 ```json
 {
   "title": "우리 가족 방",
-  "joinPolicy": "INVITE_CODE_ONLY",
+  "joinPolicy": "PUBLIC",
   "maxParticipants": 3,
   "password": null
 }
 ```
 
-비밀번호 방: `"joinPolicy": "INVITE_CODE_WITH_PASSWORD"`, `"password": "1234"`.
+비밀번호 방: `"joinPolicy": "PASSWORD_PROTECTED"`, `"password": "1234"`.
 
 ### 전체 방 목록(발견) `GET /room/discover`
 
-페이지네이션으로 **모든 방**을 조회합니다. **`inviteCode`는 응답에 없음.**
+페이지네이션으로 **모든 방**을 조회합니다. (**초대 코드 필드 없음** — 공개/비밀번호 유형만 `joinPolicy`로 표현.)
 
 쿼리: `page`(기본 0), `size`(기본 20, 최대 50). 정렬은 생성일 내림차순 기준.
 
@@ -133,16 +135,11 @@
 
 ### 목록 `GET /room`
 
-참여 중인 방 배열 (`RoomResponse`: `id`, `ownerId`, `name`, `inviteCode`, `joinPolicy`, `maxParticipants`, `createdAt`, `updatedAt`).
+참여 중인 방 배열 (`RoomResponse`: `id`, `ownerId`, `name`, `joinPolicy`, `maxParticipants`, `createdAt`, `updatedAt`).
 
 ### 입장 `POST /room/join`
 
-**`inviteCode`와 `roomId` 중 하나만** 보냅니다.
-
-- **초대 코드**: `"inviteCode": "720341"` (6자리 문자열). 비밀번호 방이면 `"password"` 필수.
-- **비밀번호 방만**, 초대 코드 없이: `"roomId": 6`, `"password": "1234"` (`INVITE_CODE_WITH_PASSWORD` 만 허용).
-
-자세한 예시·에러는 [frontend-handoff-single-doc.md](./frontend-handoff-single-doc.md).
+**`roomId` 필수.** 공개 방은 `password` 없음, 비밀번호 방은 `password` 필수. 자세한 내용은 [frontend-handoff-single-doc.md](./frontend-handoff-single-doc.md).
 
 ### 상세 `GET /room/{roomId}` · 멤버 `GET /room/{roomId}/members`
 

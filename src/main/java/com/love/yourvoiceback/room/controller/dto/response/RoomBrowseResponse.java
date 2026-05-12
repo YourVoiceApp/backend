@@ -15,7 +15,7 @@ public record RoomBrowseResponse(
         LocalDateTime createdAt
 ) {
     public static RoomBrowseResponse from(VoiceRoom room, long activeMemberCount) {
-        boolean passwordProtected = room.getJoinPolicy() == JoinPolicy.INVITE_CODE_WITH_PASSWORD;
+        boolean passwordProtected = room.getJoinPolicy() == JoinPolicy.PASSWORD_PROTECTED;
         return new RoomBrowseResponse(
                 room.getId(),
                 room.getName(),

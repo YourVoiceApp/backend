@@ -48,8 +48,10 @@
 
 ### `joinPolicy`
 
-- `INVITE_CODE_ONLY`
-- `INVITE_CODE_WITH_PASSWORD`
+- **`PUBLIC`** — 공개 방 (`roomId`만으로 입장)
+- **`PASSWORD_PROTECTED`** — 비밀번호 방
+
+단일 명세·예시: [frontend-handoff-single-doc.md](./frontend-handoff-single-doc.md). 아래 절의 오래된 JSON 예시는 구버전일 수 있습니다.
 
 ### `accessScope`
 
@@ -68,8 +70,7 @@ Response:
     "id": 1,
     "ownerId": 1,
     "name": "우리 가족 방",
-    "inviteCode": 720341,
-    "joinPolicy": "INVITE_CODE_ONLY",
+    "joinPolicy": "PUBLIC",
     "maxParticipants": 3,
     "createdAt": "2026-04-17T13:40:00",
     "updatedAt": "2026-04-17T13:40:00"
@@ -78,8 +79,7 @@ Response:
     "id": 2,
     "ownerId": 1,
     "name": "사촌 모임",
-    "inviteCode": 981203,
-    "joinPolicy": "INVITE_CODE_WITH_PASSWORD",
+    "joinPolicy": "PASSWORD_PROTECTED",
     "maxParticipants": 3,
     "createdAt": "2026-04-17T13:40:00",
     "updatedAt": "2026-04-17T13:40:00"
@@ -89,24 +89,26 @@ Response:
 
 - 현재는 `내가 참여 중인 방` 기준으로 조회 가능합니다.
 
-## 2. 초대 코드로 방 입장
+## 2. 방 입장 (`roomId` 기준)
 
 - `POST /room/join`
 
-Request:
+`joinPolicy`가 **`PUBLIC`**이면 **`password` 생략** 또는 빈 값. **`PASSWORD_PROTECTED`**면 **`password` 필요**(평문, 서버가 검증).
+
+Request — 공개 방:
 
 ```json
 {
-  "inviteCode": "720341",
-  "password": "1234"
+  "roomId": 1
 }
 ```
 
-비밀번호가 없는 방 예시:
+Request — 비밀번호 방:
 
 ```json
 {
-  "inviteCode": "720341"
+  "roomId": 1,
+  "password": "1234"
 }
 ```
 
@@ -117,8 +119,7 @@ Response:
   "id": 1,
   "ownerId": 1,
   "name": "우리 가족 방",
-  "inviteCode": 720341,
-  "joinPolicy": "INVITE_CODE_WITH_PASSWORD",
+  "joinPolicy": "PASSWORD_PROTECTED",
   "maxParticipants": 3,
   "createdAt": "2026-04-17T13:40:00",
   "updatedAt": "2026-04-17T13:40:00"
@@ -134,7 +135,7 @@ Request:
 ```json
 {
   "title": "우리 가족 방",
-  "joinPolicy": "INVITE_CODE_ONLY",
+  "joinPolicy": "PUBLIC",
   "maxParticipants": 3,
   "password": null
 }
@@ -145,7 +146,7 @@ Request:
 ```json
 {
   "title": "사촌 모임",
-  "joinPolicy": "INVITE_CODE_WITH_PASSWORD",
+  "joinPolicy": "PASSWORD_PROTECTED",
   "maxParticipants": 3,
   "password": "1234"
 }
@@ -158,8 +159,7 @@ Response:
   "id": 1,
   "ownerId": 1,
   "name": "우리 가족 방",
-  "inviteCode": 720341,
-  "joinPolicy": "INVITE_CODE_ONLY",
+  "joinPolicy": "PUBLIC",
   "maxParticipants": 3,
   "createdAt": "2026-04-17T13:40:00",
   "updatedAt": "2026-04-17T13:40:00"
@@ -184,8 +184,7 @@ Response:
   "id": 1,
   "ownerId": 1,
   "name": "우리 가족 방",
-  "inviteCode": 720341,
-  "joinPolicy": "INVITE_CODE_ONLY",
+  "joinPolicy": "PUBLIC",
   "maxParticipants": 3,
   "createdAt": "2026-04-17T13:40:00",
   "updatedAt": "2026-04-17T13:40:00"
@@ -222,7 +221,7 @@ Request:
 ```json
 {
   "title": "우리 가족 방 수정",
-  "joinPolicy": "INVITE_CODE_WITH_PASSWORD",
+  "joinPolicy": "PASSWORD_PROTECTED",
   "maxParticipants": 4,
   "password": "9999"
 }
@@ -235,8 +234,7 @@ Response:
   "id": 1,
   "ownerId": 1,
   "name": "우리 가족 방 수정",
-  "inviteCode": 720341,
-  "joinPolicy": "INVITE_CODE_WITH_PASSWORD",
+  "joinPolicy": "PASSWORD_PROTECTED",
   "maxParticipants": 4,
   "createdAt": "2026-04-17T13:40:00",
   "updatedAt": "2026-04-17T14:00:00"
@@ -360,7 +358,7 @@ Response:
 
 - 프론트 인계 단일 명세는 [frontend-handoff-single-doc.md](./frontend-handoff-single-doc.md) 참고
 - 목록 화면은 `GET /room`
-- 입장 화면은 `POST /room/join`
+- 입장 화면은 `POST /room/join` — **`roomId` 필수**, 비밀번호 방만 **`password`**
 - 멤버 영역은 `GET /room/{roomId}/members`
 - 상세 진입 후 공유 음성 영역은 `GET /room/{roomId}/voice-shares`
 - 방 생성/수정 시 프론트 모델은 `title`, 화면 표시 모델은 `name` 으로 매핑 필요

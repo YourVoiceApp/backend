@@ -13,9 +13,5 @@ public interface RoomRepository extends JpaRepository<VoiceRoom,Long>{
 
     Optional<VoiceRoom> findByIdAndOwnerId(Long id, Long ownerId);
 
-    Optional<VoiceRoom> findByInviteCode(Integer inviteCode);
-
-    boolean existsByInviteCode(Integer inviteCode);
-
     Page<VoiceRoom> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

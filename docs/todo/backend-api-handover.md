@@ -11,10 +11,9 @@
 
 ## P0. 바로 필요한 항목
 
-### 1. 초대 코드로 방 입장 API
+### 1. 방 입장 API (`roomId` 기준)
 
-현재 프론트에는 `RoomJoinPage`가 있고, 사용자는 초대 코드 또는 코드+비밀번호로 방에 들어가야 합니다.  
-하지만 현재 문서에는 "방 생성/목록/상세/수정/삭제"만 있고, 실제 입장 API가 없습니다.
+프론트 `RoomJoinPage` 등은 **`roomId`**로 입장합니다(디스커버·딥링크·공유에서 `roomId` 전달). **`inviteCode` 계약은 폐기.**
 
 권장 예시:
 
@@ -24,8 +23,16 @@ Request:
 
 ```json
 {
-  "inviteCode": "720341",
+  "roomId": 1,
   "password": "1234"
+}
+```
+
+공개 방은 `password` 생략 가능:
+
+```json
+{
+  "roomId": 1
 }
 ```
 
@@ -36,18 +43,16 @@ Response:
   "id": 1,
   "ownerId": 1,
   "name": "우리 가족 방",
-  "inviteCode": 720341,
-  "joinPolicy": "INVITE_CODE_WITH_PASSWORD",
+  "joinPolicy": "PASSWORD_PROTECTED",
   "maxParticipants": 3,
   "createdAt": "2026-04-17T13:40:00",
   "updatedAt": "2026-04-17T13:40:00"
 }
 ```
 
-필요 이유:
+참고:
 
-- 현재 로그인 상태에서는 `입장하기`를 실제 API로 연결할 수 없음
-- `GET /room` 문서는 "내가 만든 방" 기준처럼 보이므로, 초대받은 방 참여와는 별개 흐름이 필요함
+- `GET /room` 은 "내가 참여 중인 방" 기준(백엔드 동작은 항목 8 참고). 초대 코드 없이 **`roomId`만으로** 입장 플로우를 연결하면 됨.
 
 ### 2. 방 상세 응답에 멤버 목록 제공 또는 멤버 조회 API 추가
 
@@ -67,8 +72,7 @@ Response:
   "id": 1,
   "ownerId": 1,
   "name": "우리 가족 방",
-  "inviteCode": 720341,
-  "joinPolicy": "INVITE_CODE_ONLY",
+  "joinPolicy": "PUBLIC",
   "maxParticipants": 3,
   "members": [
     {
@@ -234,7 +238,7 @@ Response:
 
 ## 백엔드 전달 권장 순서
 
-1. 방 입장 API
+1. 방 입장 API (`roomId` / 선택적 `password`) — 계약 반영 및 프론트 마이그레이션
 2. 방 멤버 목록 또는 상세 응답 보강
 3. 공유 음성 ownerName
 4. 음성 목록에 ownershipId 추가

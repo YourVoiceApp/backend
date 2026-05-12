@@ -1,21 +1,18 @@
 package com.love.yourvoiceback.room.controller.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
 /**
- * 입장 방식 둘 중 하나만 사용합니다.
- * <ul>
- *   <li>{@code inviteCode}: 6자리 숫자 초대 코드로 방 조회 후 입장</li>
- *   <li>{@code roomId}: 비밀번호 방({@code INVITE_CODE_WITH_PASSWORD})만 — 초대 코드 없이 비밀번호만으로 입장</li>
- * </ul>
+ * {@link #roomId}는 목록({@code GET /room/discover}) 등에서 선택한 방의 ID.
+ * 비밀번호 방은 {@link #password} 필수, 공개 방은 비밀번호를 보내지 마세요.
  */
-@Schema(description = "inviteCode 또는 roomId 중 하나 필수. 둘 다 보내면 안 됩니다.")
+@Schema(description = "방 입장: roomId 필수. PASSWORD_PROTECTED 방만 password 필요.")
 public record RoomJoinRequest(
-        @Schema(description = "6자리 숫자 문자열", example = "720341")
-        String inviteCode,
-        @Schema(description = "목록 조회로 얻은 방 ID (비밀번호 방 전용)", example = "1")
+        @NotNull
+        @Schema(description = "입장할 방 ID", example = "6")
         Long roomId,
-        @Schema(description = "비밀번호 방일 때 필수")
+        @Schema(description = "비밀번호 방일 때 필수", example = "1234")
         String password
 ) {
 }

@@ -31,7 +31,10 @@ public class VoiceRoom {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false)
+    /**
+     * 레거시(초대 코드 시대) 값. 신규 방은 null.
+     */
+    @Column
     private Integer inviteCode;
 
     @Column(length = 255)
@@ -52,11 +55,11 @@ public class VoiceRoom {
     @Column(nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    public static VoiceRoom of(User owner, String name, Integer inviteCode, JoinPolicy joinPolicy, String passwordHash, Long maxParticipants) {
+    public static VoiceRoom of(User owner, String name, JoinPolicy joinPolicy, String passwordHash, Long maxParticipants) {
         return VoiceRoom.builder()
                 .owner(owner)
                 .name(name)
-                .inviteCode(inviteCode)
+                .inviteCode(null)
                 .joinPolicy(joinPolicy)
                 .passwordHash(passwordHash)
                 .maxParticipants(maxParticipants)
